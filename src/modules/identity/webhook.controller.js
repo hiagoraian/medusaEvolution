@@ -3,6 +3,7 @@ import {
   deleteConnectData,
   setInstanceOnline,
   setInstanceOffline,
+  isInstanceOnline,
 } from './cache.service.js';
 import { publishMessage, QUEUES } from '../../core/rabbitmq.js';
 
@@ -67,13 +68,19 @@ export async function handleEvolutionWebhook(req, res) {
         const state = body?.data?.state ?? body?.data?.connection;
 
         if (state === 'open') {
-          await setInstanceOnline(instance);
-          await deleteConnectData(instance);
-          console.log(`[WEBHOOK] Instância CONECTADA: ${instance}`);
+          const alreadyOnline = await isInstanceOnline(instance);
+          if (!alreadyOnline) {
+            await setInstanceOnline(instance);
+            await deleteConnectData(instance);
+            console.log(`[WEBHOOK] Instância CONECTADA: ${instance}`);
+          }
         } else if (state === 'close') {
-          await setInstanceOffline(instance);
-          await deleteConnectData(instance);
-          console.log(`[WEBHOOK] Instância DESCONECTADA: ${instance}`);
+          const alreadyOnline = await isInstanceOnline(instance);
+          if (alreadyOnline) {
+            await setInstanceOffline(instance);
+            await deleteConnectData(instance);
+            console.log(`[WEBHOOK] Instância DESCONECTADA: ${instance}`);
+          }
         }
         break;
       }
