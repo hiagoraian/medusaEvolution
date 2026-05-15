@@ -33,17 +33,23 @@ function ModalQr({ accountId, onClose }) {
   const [phase,   setPhase]   = useState('starting'); // starting|polling|connected|error
   const [message, setMessage] = useState('Iniciando instância...');
   const intervalRef = useRef(null);
-  const startedRef  = useRef(false); // evita duplo disparo do StrictMode em dev
+  const startedRef  = useRef(false);
+  const aliveRef    = useRef(true);
 
   useEffect(() => {
-    if (startedRef.current) return;
+    // Sempre reseta aliveRef ANTES do early-return — garante que o run() pendente
+    // do primeiro mount (StrictMode) ainda encontre alive=true quando resolver.
+    aliveRef.current = true;
+
+    if (startedRef.current) {
+      return () => { aliveRef.current = false; clearInterval(intervalRef.current); };
+    }
     startedRef.current = true;
-    let alive = true;
 
     async function run() {
       try {
         const { data } = await startWhatsApp(accountId);
-        if (!alive) return;
+        if (!aliveRef.current) return;
         if (data?.alreadyConnected) {
           setPhase('connected');
           setMessage('Instância já estava conectada!');
@@ -51,7 +57,7 @@ function ModalQr({ accountId, onClose }) {
         }
         poll();
       } catch (err) {
-        if (!alive) return;
+        if (!aliveRef.current) return;
         setPhase('error');
         setMessage(err.response?.data?.error ?? err.message);
       }
@@ -63,10 +69,10 @@ function ModalQr({ accountId, onClose }) {
       let hasShownQr = false;
 
       intervalRef.current = setInterval(async () => {
-        if (!alive) { clearInterval(intervalRef.current); return; }
+        if (!aliveRef.current) { clearInterval(intervalRef.current); return; }
         try {
           const { data } = await getQrCode(accountId);
-          if (!alive) { clearInterval(intervalRef.current); return; }
+          if (!aliveRef.current) { clearInterval(intervalRef.current); return; }
           const b64 = normalizeBase64(data?.connectData?.base64 ?? null);
 
           if (b64) {
@@ -83,7 +89,7 @@ function ModalQr({ accountId, onClose }) {
             setMessage(`${accountId} conectado com sucesso!`);
           }
         } catch (err) {
-          if (!alive) { clearInterval(intervalRef.current); return; }
+          if (!aliveRef.current) { clearInterval(intervalRef.current); return; }
           const code = err.response?.status;
           if (code === 404 && hasShownQr) {
             clearInterval(intervalRef.current);
@@ -101,7 +107,7 @@ function ModalQr({ accountId, onClose }) {
     }
 
     run();
-    return () => { alive = false; clearInterval(intervalRef.current); };
+    return () => { aliveRef.current = false; clearInterval(intervalRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
