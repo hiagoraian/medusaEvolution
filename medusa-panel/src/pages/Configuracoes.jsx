@@ -33,8 +33,11 @@ function ModalQr({ accountId, onClose }) {
   const [phase,   setPhase]   = useState('starting'); // starting|polling|connected|error
   const [message, setMessage] = useState('Iniciando instância...');
   const intervalRef = useRef(null);
+  const startedRef  = useRef(false); // evita duplo disparo do StrictMode em dev
 
   useEffect(() => {
+    if (startedRef.current) return;
+    startedRef.current = true;
     let alive = true;
 
     async function run() {

@@ -27,7 +27,7 @@ const PORT = process.env.PORT ?? 3000;
 
 // ── Middlewares (antes das rotas) ─────────────────────────────────────────────
 app.use(cors({ origin: '*' }));
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 
 // ── Rotas ─────────────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {
