@@ -70,6 +70,9 @@ export async function startInstance(req, res) {
     const proxyConfig = await resolveProxy(accountId);
     const data = await createInstance(accountId, proxyConfig);
     console.log(`[DEBUG] Instância "${accountId}" criada — Evolution: ${JSON.stringify(data).slice(0, 120)}`);
+    // Evolution API v2 não inicia o QR automaticamente no create — é necessário chamar connect.
+    await doReconnectAndSaveQr(accountId);
+    console.log(`[DEBUG] Conexão iniciada para "${accountId}" — aguardando QR via webhook.`);
     return res.json({ message: 'Processando conexão via webhook' });
   } catch (err) {
     const httpStatus = err.response?.status;
