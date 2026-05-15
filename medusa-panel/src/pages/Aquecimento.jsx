@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  Flame, Calendar, Zap, Settings2,
+  Flame, Calendar, Zap, Settings2, Clock,
   Save, RefreshCw, CheckCircle, AlertCircle, Loader2,
 } from 'lucide-react';
 import { getWarmupConfig, updateWarmupConfig, getConnectedInstances } from '../services/api.js';
@@ -28,6 +28,13 @@ const LEVEL_LABELS = {
 // WA-01 a WA-48 (WA-49 é admin/inbound, não entra no aquecimento)
 const CAMPAIGN_IDS = Array.from({ length: 48 }, (_, i) => `WA-${String(i + 1).padStart(2, '0')}`);
 
+// Converte ISO UTC → "YYYY-MM-DDTHH:MM" no fuso local (para input datetime-local)
+function isoToLocal(iso) {
+  const d = new Date(iso);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 // ── Sub-componentes ───────────────────────────────────────────────────────────
 
 function SectionCard({ icon: Icon, title, children, className = '' }) {
@@ -50,6 +57,8 @@ export default function Aquecimento() {
   const [allowedDays, setAllowedDays] = useState([1, 2, 3, 4, 5]);
   const [activeZaps,  setActiveZaps]  = useState([]);
   const [instances,   setInstances]   = useState({});
+  const [startAt,     setStartAt]     = useState('');
+  const [endAt,       setEndAt]       = useState('');
 
   const [loading,  setLoading]  = useState(false);
   const [saving,   setSaving]   = useState(false);
@@ -72,6 +81,8 @@ export default function Aquecimento() {
       setLevel(cfg.level);
       setAllowedDays(cfg.allowedDays);
       setActiveZaps(cfg.activeZaps);
+      setStartAt(cfg.startAt ? isoToLocal(cfg.startAt) : '');
+      setEndAt(cfg.endAt   ? isoToLocal(cfg.endAt)   : '');
       setInstances(map);
     } catch {
       setFeedback({ type: 'error', message: 'Não foi possível carregar a configuração do backend.' });
@@ -87,7 +98,11 @@ export default function Aquecimento() {
     setSaving(true);
     setFeedback(null);
     try {
-      await updateWarmupConfig({ active, level, allowedDays, activeZaps });
+      await updateWarmupConfig({
+        active, level, allowedDays, activeZaps,
+        startAt: startAt ? new Date(startAt).toISOString() : null,
+        endAt:   endAt   ? new Date(endAt).toISOString()   : null,
+      });
       setFeedback({ type: 'success', message: 'Configurações salvas com sucesso!' });
     } catch (err) {
       setFeedback({ type: 'error', message: err.response?.data?.error ?? err.message });
@@ -253,7 +268,50 @@ export default function Aquecimento() {
           </p>
         </SectionCard>
 
-        {/* ── Card 4: Seleção de Zaps (full width) ─────────────────────────── */}
+        {/* ── Card 4: Período de Operação ─────────────────────────────────── */}
+        <SectionCard icon={Clock} title="Período de Operação">
+          <p className="text-sm text-gray-500">
+            Define quando o aquecimento começa e termina. O motor ainda respeita a janela
+            das <strong>08:00–20:00</strong> e os dias selecionados dentro desse período.
+            Deixe em branco para rodar indefinidamente enquanto estiver ativado.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                Início
+              </label>
+              <input
+                type="datetime-local"
+                value={startAt}
+                onChange={(e) => setStartAt(e.target.value)}
+                className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm
+                           focus:outline-none focus:ring-2 focus:ring-emerald-400"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                Fim
+              </label>
+              <input
+                type="datetime-local"
+                value={endAt}
+                onChange={(e) => setEndAt(e.target.value)}
+                className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm
+                           focus:outline-none focus:ring-2 focus:ring-emerald-400"
+              />
+            </div>
+          </div>
+          {(startAt || endAt) && (
+            <button
+              onClick={() => { setStartAt(''); setEndAt(''); }}
+              className="text-xs text-gray-400 hover:text-red-500 transition underline"
+            >
+              Limpar período
+            </button>
+          )}
+        </SectionCard>
+
+        {/* ── Card 5: Seleção de Zaps (full width) ─────────────────────────── */}
         <SectionCard icon={Zap} title="Zaps para Aquecer" className="lg:col-span-2">
           <div className="flex items-center justify-between -mt-1">
             <p className="text-sm text-gray-500">

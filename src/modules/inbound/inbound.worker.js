@@ -41,12 +41,25 @@ export async function startInboundWorker() {
 
       console.log(`[INBOUND] ✓ Encaminhado — +${phone} via ${instance} [${messageType}]`);
     } catch (err) {
+      const httpStatus = err.response?.status;
+
+      // Erros permanentes (4xx): descarta — requeue causaria loop infinito.
+      // Causas comuns: ADMIN_GROUP_JID inválido, tipo de mensagem não suportado.
+      if (httpStatus >= 400 && httpStatus < 500) {
+        console.warn(
+          `[INBOUND] ✗ Erro permanente (${httpStatus}) para ${messageType} de +${phone} — descartando.`
+        );
+        ack();
+        return;
+      }
+
+      // Erros transientes (5xx / rede): envia para DLQ sem requeue imediato.
       console.error(
         `[INBOUND] ✗ Falha ao encaminhar ${messageType} de +${phone} via ${instance}:`,
         err.message,
-        '— requeue.'
+        '— DLQ.'
       );
-      nack(true);
+      nack(false);
     }
   });
 

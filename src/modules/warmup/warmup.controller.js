@@ -6,6 +6,8 @@ function toApiShape(s) {
     level:       s.intensity,
     allowedDays: s.allowedDays,
     activeZaps:  s.selectedZaps,
+    startAt:     s.startAt ?? null,
+    endAt:       s.endAt   ?? null,
   };
 }
 
@@ -21,16 +23,18 @@ export async function getConfigHandler(_req, res) {
 
 // POST /api/warmup/config
 export async function updateConfigHandler(req, res) {
-  const { active, level, allowedDays, activeZaps } = req.body;
+  const { active, level, allowedDays, activeZaps, startAt, endAt } = req.body;
 
   try {
     const current = await getWarmupSettings();
 
     await saveWarmupSettings({
-      isActive:     active !== undefined      ? Boolean(active)                               : current.isActive,
-      intensity:    level  !== undefined      ? Math.min(5, Math.max(1, Number(level)))       : current.intensity,
-      allowedDays:  Array.isArray(allowedDays) ? allowedDays                                  : current.allowedDays,
-      selectedZaps: Array.isArray(activeZaps)  ? activeZaps                                   : current.selectedZaps,
+      isActive:     active !== undefined       ? Boolean(active)                               : current.isActive,
+      intensity:    level  !== undefined       ? Math.min(5, Math.max(1, Number(level)))       : current.intensity,
+      allowedDays:  Array.isArray(allowedDays) ? allowedDays                                   : current.allowedDays,
+      selectedZaps: Array.isArray(activeZaps)  ? activeZaps                                    : current.selectedZaps,
+      startAt:      startAt !== undefined      ? (startAt || null)                             : current.startAt,
+      endAt:        endAt   !== undefined      ? (endAt   || null)                             : current.endAt,
     });
 
     const updated = await getWarmupSettings();

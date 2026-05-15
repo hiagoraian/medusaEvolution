@@ -28,6 +28,15 @@ function isWithinWindow(allowedDays) {
   return true;
 }
 
+// Verifica se estamos dentro do período start_at → end_at configurado pelo usuário.
+// null em ambos = sem restrição de período.
+function isWithinSchedule(startAt, endAt) {
+  const now = new Date();
+  if (startAt && now < new Date(startAt)) return false;
+  if (endAt   && now > new Date(endAt))   return false;
+  return true;
+}
+
 // ── Fisher-Yates shuffle ─────────────────────────────────────────────────────
 
 function shuffle(arr) {
@@ -42,12 +51,20 @@ function shuffle(arr) {
 // ── Tick principal ────────────────────────────────────────────────────────────
 
 async function tick() {
-  const { isActive, intensity, allowedDays, selectedZaps } = await getWarmupSettings();
+  const { isActive, intensity, allowedDays, selectedZaps, startAt, endAt } = await getWarmupSettings();
 
   if (!isActive) return;
 
+  if (!isWithinSchedule(startAt, endAt)) {
+    const reason = startAt && new Date() < new Date(startAt)
+      ? `aguardando início (${new Date(startAt).toLocaleString('pt-BR')})`
+      : `período encerrado (${new Date(endAt).toLocaleString('pt-BR')})`;
+    console.log(`[WARMUP-CRON] Fora do período configurado — ${reason}.`);
+    return;
+  }
+
   if (!isWithinWindow(allowedDays)) {
-    console.log('[WARMUP-CRON] Fora da janela de operação — hibernando.');
+    console.log('[WARMUP-CRON] Fora da janela de operação (08:00–20:00) — hibernando.');
     return;
   }
 

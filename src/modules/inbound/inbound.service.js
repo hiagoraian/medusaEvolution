@@ -41,6 +41,16 @@ export async function forwardToAdminGroup(incomingMsg) {
 
   switch (messageType) {
 
+    // ── Tipos de sistema — descarta silenciosamente ─────────────────────────
+    case 'templateMessage':
+    case 'protocolMessage':
+    case 'ephemeralMessage':
+    case 'buttonsMessage':
+    case 'listMessage':
+    case 'orderMessage':
+    case 'productMessage':
+      return;
+
     // ── Texto simples / com formatação ──────────────────────────────────────
     case 'conversation':
     case 'extendedTextMessage': {
