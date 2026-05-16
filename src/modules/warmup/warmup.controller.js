@@ -29,12 +29,12 @@ export async function updateConfigHandler(req, res) {
     const current = await getWarmupSettings();
 
     await saveWarmupSettings({
-      isActive:     active !== undefined       ? Boolean(active)                               : current.isActive,
-      intensity:    level  !== undefined       ? Math.min(5, Math.max(1, Number(level)))       : current.intensity,
-      allowedDays:  Array.isArray(allowedDays) ? allowedDays                                   : current.allowedDays,
-      selectedZaps: Array.isArray(activeZaps)  ? activeZaps                                    : current.selectedZaps,
-      startAt:      startAt !== undefined      ? (startAt || null)                             : current.startAt,
-      endAt:        endAt   !== undefined      ? (endAt   || null)                             : current.endAt,
+      isActive:     active !== undefined ? Boolean(active)                         : current.isActive,
+      intensity:    level  !== undefined ? Math.min(5, Math.max(1, Number(level))) : current.intensity,
+      allowedDays:  [0, 1, 2, 3, 4, 5, 6], // todos os dias — seletor removido da UI
+      selectedZaps: Array.isArray(activeZaps) ? activeZaps                        : current.selectedZaps,
+      startAt:      startAt !== undefined ? (startAt || null)                     : current.startAt,
+      endAt:        endAt   !== undefined ? (endAt   || null)                     : current.endAt,
     });
 
     const updated = await getWarmupSettings();

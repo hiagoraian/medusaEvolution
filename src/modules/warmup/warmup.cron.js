@@ -19,12 +19,25 @@ const PAIRS_BY_LEVEL = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 };
 
 // ── Janela de operação ────────────────────────────────────────────────────────
 
+// Usa o fuso de São Paulo explicitamente — independe da TZ do servidor.
+function spParts() {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo',
+    hour:    '2-digit',
+    minute:  '2-digit',
+    weekday: 'short',
+    hour12:  false,
+  }).formatToParts(new Date());
+}
+
 function isWithinWindow(allowedDays) {
-  const now  = new Date();
-  const hour = now.getHours();
-  const day  = now.getDay();
-  if (hour < 8 || hour >= 20)        return false;
-  if (!allowedDays.includes(day))    return false;
+  const parts   = spParts();
+  const get     = (t) => parts.find((p) => p.type === t)?.value ?? '0';
+  const hour    = parseInt(get('hour'));
+  const weekday = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(get('weekday'));
+
+  if (hour < 8 || hour >= 20)          return false;
+  if (!allowedDays.includes(weekday))  return false;
   return true;
 }
 

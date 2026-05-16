@@ -32,11 +32,16 @@ async function interruptibleSleep(ms) {
   }
 }
 
-// Janela de disparo: 08:00–19:45 (horário local do servidor).
-// Configure TZ=America/Sao_Paulo no .env para garantir o fuso correto.
+// Janela de disparo: 08:00–19:45, sempre em horário de São Paulo.
 export function isWithinWindow() {
-  const now      = new Date();
-  const totalMin = now.getHours() * 60 + now.getMinutes();
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo',
+    hour:    '2-digit',
+    minute:  '2-digit',
+    hour12:  false,
+  }).formatToParts(new Date());
+  const get      = (t) => parseInt(parts.find((p) => p.type === t)?.value ?? '0');
+  const totalMin = get('hour') * 60 + get('minute');
   return totalMin >= 8 * 60 && totalMin < 19 * 60 + 45;
 }
 
