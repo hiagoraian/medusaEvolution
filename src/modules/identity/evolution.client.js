@@ -93,8 +93,13 @@ export async function fetchAllInstancesPhones() {
     for (const entry of (Array.isArray(data) ? data : [])) {
       const name  = entry.instance?.instanceName ?? entry.instanceName;
       const owner = entry.instance?.owner        ?? entry.owner;
-      if (name && owner) map[name] = owner;
+      if (name && owner) {
+        map[name] = owner;
+      } else if (name) {
+        console.warn(`[EVOLUTION] fetchAllInstancesPhones: "${name}" sem owner — ainda conectando?`);
+      }
     }
+    console.log(`[EVOLUTION] fetchAllInstancesPhones: ${Object.keys(map).length} instância(s) com JID.`);
     _instancesCache = { map, ts: Date.now() };
     return map;
   } catch (err) {
