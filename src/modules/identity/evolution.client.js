@@ -28,7 +28,7 @@ export async function createInstance(accountId, proxyConfig = null) {
       enabled: true,
       url: WEBHOOK_URL,
       byEvents: false,
-      base64: true,
+      base64: false, // base64:true infla payloads de imagem/vídeo — QR code vem da resposta HTTP do /connect
       events: WEBHOOK_EVENTS,
     },
   };
