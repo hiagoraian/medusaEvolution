@@ -89,8 +89,17 @@ export async function fetchAllInstancesPhones() {
 
   try {
     const { data } = await client.get('/instance/fetchInstances');
+    const entries = Array.isArray(data) ? data : [];
+
+    if (entries.length > 0) {
+      console.log('[EVOLUTION] fetchAllInstancesPhones — estrutura do 1º entry:',
+        JSON.stringify(entries[0], null, 2).slice(0, 600));
+    } else {
+      console.warn('[EVOLUTION] fetchAllInstancesPhones: resposta vazia.');
+    }
+
     const map = {};
-    for (const entry of (Array.isArray(data) ? data : [])) {
+    for (const entry of entries) {
       const name  = entry.instance?.instanceName ?? entry.instanceName;
       const owner = entry.instance?.owner        ?? entry.owner;
       if (name && owner) {
