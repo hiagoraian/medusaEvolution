@@ -21,6 +21,7 @@ import { startWarmupCron }    from '../modules/warmup/warmup.cron.js';
 import warmupRoutes           from '../modules/warmup/warmup.routes.js';
 import { createWarmupSchema } from '../modules/warmup/warmup.repository.js';
 import reportsRoutes          from '../modules/reports/reports.routes.js';
+import mediaRoutes            from '../modules/media/media.routes.js';
 
 const app  = express();
 const PORT = process.env.PORT ?? 3000;
@@ -47,7 +48,8 @@ app.use('/api/orchestrator',   orchestratorRoutes); // POST /api/orchestrator/st
 app.use('/api/inbound',        inboundRoutes);      // GET  /api/inbound/groups/:accountId
 app.use('/api/warmup',         warmupRoutes);       // GET  /api/warmup/config
                                                     // POST /api/warmup/config
-app.use('/api/reports',        reportsRoutes);      // GET  /api/reports/dashboard
+app.use('/api/reports',        reportsRoutes);
+app.use('/api/media',         mediaRoutes);        // POST /api/media/upload      // GET  /api/reports/dashboard
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 

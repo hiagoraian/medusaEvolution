@@ -8,6 +8,9 @@ export async function startHandler(req, res) {
     durationHours = 1,
     maxPerZap    = 30,
     zaps         = '',
+    startAt,
+    endAt,
+    media,       // { filePath, mediaType } — opcional
     // backward-compat: front antigo pode mandar `text` (string singular)
     text,
   } = req.body;
@@ -34,6 +37,9 @@ export async function startHandler(req, res) {
     durationHours: Number(durationHours) || 1,
     maxPerZap:     Number(maxPerZap)     || 30,
     zaps:          normalizedZaps,
+    startAt:       startAt ?? null,
+    endAt:         endAt   ?? null,
+    media:         (media?.filePath && media?.mediaType) ? media : null,
   });
 
   if (!result.success) {

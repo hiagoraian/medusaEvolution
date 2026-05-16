@@ -40,6 +40,13 @@ export function isWithinWindow() {
   return totalMin >= 8 * 60 && totalMin < 19 * 60 + 45;
 }
 
+function isWithinSchedule(startAt, endAt) {
+  const now = new Date();
+  if (startAt && now < new Date(startAt)) return false;
+  if (endAt   && now > new Date(endAt))   return false;
+  return true;
+}
+
 // allowedZaps: array de IDs selecionados pelo usuário. Vazio = usa todos os 48.
 async function getOnlineAccounts(allowedZaps = []) {
   const all        = Object.values(ZTE_CONFIG).flatMap((z) => z.accounts);
@@ -68,12 +75,25 @@ function calcDelay(durationHours, totalPending) {
 // ── Loop principal ────────────────────────────────────────────────────────────
 
 async function runCampaignLoop(campaignId, texts, options) {
-  const { durationHours } = options;
+  const { durationHours, startAt, endAt, media } = options;
   let wave = 0;
 
   while (!stopRequested) {
 
-    // ── Passo 1: Validação de horário ─────────────────────────────────────
+    // ── Passo 1: Validação de período configurado ─────────────────────────
+    if (!isWithinSchedule(startAt, endAt)) {
+      const now = new Date();
+      if (startAt && now < new Date(startAt)) {
+        const waitMs = Math.min(new Date(startAt) - now, OUT_OF_WINDOW_MS);
+        console.log(`[ORCHESTRATOR] Aguardando início agendado (${new Date(startAt).toLocaleString('pt-BR')}). Hibernando...`);
+        await interruptibleSleep(waitMs);
+        continue;
+      }
+      console.log(`[ORCHESTRATOR] Campanha "${campaignId}" encerrada — período configurado expirou.`);
+      break;
+    }
+
+    // ── Passo 1b: Validação de janela diária ──────────────────────────────
     if (!isWithinWindow()) {
       console.log(`[ORCHESTRATOR] Fora da janela (08:00–19:45). Hibernando 5 min...`);
       await interruptibleSleep(OUT_OF_WINDOW_MS);
@@ -127,14 +147,16 @@ async function runCampaignLoop(campaignId, texts, options) {
       continue;
     }
 
-    // ── Passo 5: Enfileira com delay + textos no payload ──────────────────
+    // ── Passo 5: Enfileira com delay + textos + mídia no payload ─────────
     const messages = batch.map((contact, i) => ({
       id:             contact.id,
       phone:          contact.phone,
       accountId:      online[i % online.length],
       texts,             // array completo viaja junto — worker sorteia na hora do envio
       delayFlexivelMs,   // cadenciamento calculado matematicamente
-      type:           'text',
+      type:           media ? 'media_text' : 'text', // media_text = texto + mídia
+      mediaFilePath:  media?.filePath  ?? null,
+      mediaType:      media?.mediaType ?? null,
       campaignId,
     }));
 
@@ -191,6 +213,9 @@ export async function startCampaign(campaignId, texts, options = {}) {
     durationHours: options.durationHours ?? 1,
     maxPerZap:     options.maxPerZap     ?? 30,
     zaps:          Array.isArray(options.zaps) ? options.zaps : [],
+    startAt:       options.startAt ?? null,
+    endAt:         options.endAt   ?? null,
+    media:         options.media   ?? null,
   };
 
   // Arma a campanha: converte 'importado' → 'pendente' (lista em repouso vira ativa)

@@ -94,6 +94,14 @@ export function uploadList(campaignId, file) {
   });
 }
 
+export function uploadMedia(file) {
+  const form = new FormData();
+  form.append('file', file);
+  return api.post('/media/upload', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+}
+
 export function getLists() {
   return api.get('/pipeline/lists');
 }

@@ -2,11 +2,30 @@ import { consumeQueue }            from '../../core/rabbitmq.js';
 import { isInstanceOnline }        from '../identity/cache.service.js';
 import { sendText, sendMedia }     from './evolution.outbound.client.js';
 import { updateMessageStatus }     from '../pipeline/pipeline.repository.js';
+import fs                          from 'fs';
 
-const OFFLINE_REQUEUE_DELAY_MS = 10_000; // pausa antes de requeue quando instância está offline
-const MIN_SAFE_DELAY_MS        = 15_000; // freio de mão: delay mínimo mesmo sem cálculo
+const OFFLINE_REQUEUE_DELAY_MS = 10_000;
+const MIN_SAFE_DELAY_MS        = 15_000;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Cache de mídia em memória — lê o arquivo do disco apenas uma vez por processo.
+// Chave: filePath absoluto → Valor: base64 string
+const _mediaCache = new Map();
+
+function getMediaBase64(filePath) {
+  if (!filePath) return null;
+  if (_mediaCache.has(filePath)) return _mediaCache.get(filePath);
+  try {
+    const b64 = fs.readFileSync(filePath).toString('base64');
+    _mediaCache.set(filePath, b64);
+    console.log(`[WORKER] Mídia carregada em cache: ${filePath} (${(b64.length / 1024).toFixed(0)} KB base64)`);
+    return b64;
+  } catch (err) {
+    console.error(`[WORKER] Falha ao ler mídia "${filePath}":`, err.message);
+    return null;
+  }
+}
 
 // Atualiza o DB sem bloquear o fluxo principal — falha aqui é não-crítica.
 async function reportStatus(id, status, phone) {
@@ -33,9 +52,10 @@ export async function startOutboundWorkers() {
       id,
       accountId,
       phone,
-      type        = 'text',
+      type          = 'text',
       mediaUrl,
       mediaType,
+      mediaFilePath, // campanha com mídia local (cache em memória)
       caption,
       campaignId,
       delayFlexivelMs,  // calculado pelo orquestrador — undefined em msgs de teste
@@ -71,7 +91,16 @@ export async function startOutboundWorkers() {
 
     // ── Passo 3: Envio via Evolution API ──────────────────────────────────────
     try {
-      if (type === 'media') {
+      if (type === 'media_text') {
+        const textoSorteado = sortearTexto(task);
+        const b64 = getMediaBase64(mediaFilePath);
+        if (b64) {
+          await sendMedia(accountId, phone, b64, mediaType, textoSorteado);
+        } else {
+          console.warn(`[WORKER] Arquivo de mídia ausente para ${phone} — enviando apenas texto.`);
+          await sendText(accountId, phone, textoSorteado);
+        }
+      } else if (type === 'media') {
         await sendMedia(accountId, phone, mediaUrl, mediaType, caption);
       } else {
         const textoSorteado = sortearTexto(task);

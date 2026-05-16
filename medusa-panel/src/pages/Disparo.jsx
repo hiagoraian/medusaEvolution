@@ -1,16 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Send, Clock, ShieldAlert, MessageSquare, Eye, Smartphone,
   Square, RefreshCw, CheckCircle, AlertCircle, Loader2, X, Zap,
+  Image as ImageIcon, Film, Upload, Calendar,
 } from 'lucide-react';
 import {
   startCampaign, stopCampaign, getCampaignStatus, sendTestMessage,
-  getLists, getConnectedInstances,
+  getLists, getConnectedInstances, uploadMedia,
 } from '../services/api.js';
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 
-// WA-01 a WA-48 (WA-49 é admin/inbound, não entra no disparo)
 const CAMPAIGN_IDS = Array.from({ length: 48 }, (_, i) => `WA-${String(i + 1).padStart(2, '0')}`);
 
 // ── Sub-componentes utilitários ───────────────────────────────────────────────
@@ -42,9 +42,29 @@ function ModalBackdrop({ onClose, children }) {
   );
 }
 
+function Row({ label, value }) {
+  return (
+    <div className="flex justify-between gap-4">
+      <span className="text-sm text-gray-500">{label}</span>
+      <span className="text-sm font-medium text-gray-800 text-right">{value}</span>
+    </div>
+  );
+}
+
+function formatLocal(dtLocal) {
+  if (!dtLocal) return '—';
+  const [date, time] = dtLocal.split('T');
+  const [y, m, d] = date.split('-');
+  return `${d}/${m}/${y} ${time}`;
+}
+
 // ── Modal: Visualizar Plano ───────────────────────────────────────────────────
 
-function ModalPlan({ campaignId, durationHours, maxPerZap, zaps, texts, isStarting, onStart, onClose }) {
+function ModalPlan({
+  campaignId, durationHours, maxPerZap, zaps, texts,
+  media, startAt, endAt,
+  isStarting, onStart, onClose,
+}) {
   const delayMin    = maxPerZap > 0 ? ((durationHours * 60) / maxPerZap).toFixed(1) : '∞';
   const zapList     = Array.isArray(zaps) ? zaps : [];
   const filledTexts = texts.map((t, i) => ({ label: ['A','B','C'][i], text: t })).filter((t) => t.text.trim());
@@ -70,8 +90,17 @@ function ModalPlan({ campaignId, durationHours, maxPerZap, zaps, texts, isStarti
             <Row label="Máx. / Zap"   value={`${maxPerZap} mensagens`} />
             <Row
               label="Zaps Alocados"
-              value={zapList.length ? zapList.join(', ') : '— (orquestrador detecta automaticamente)'}
+              value={zapList.length ? zapList.join(', ') : '— (detecta automaticamente)'}
             />
+            {media && (
+              <Row label="Mídia" value={`${media.fileName} (${media.sizeKb} KB)`} />
+            )}
+            {startAt && (
+              <Row label="Início agendado" value={formatLocal(startAt)} />
+            )}
+            {endAt && (
+              <Row label="Fim agendado" value={formatLocal(endAt)} />
+            )}
           </div>
 
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-1">
@@ -134,15 +163,6 @@ function ModalPlan({ campaignId, durationHours, maxPerZap, zaps, texts, isStarti
         </div>
       </div>
     </ModalBackdrop>
-  );
-}
-
-function Row({ label, value }) {
-  return (
-    <div className="flex justify-between gap-4">
-      <span className="text-sm text-gray-500">{label}</span>
-      <span className="text-sm font-medium text-gray-800 text-right">{value}</span>
-    </div>
   );
 }
 
@@ -308,6 +328,16 @@ export default function Disparo() {
   const [enabledLists,    setEnabledLists]    = useState([]);
   const [listsLoading,    setListsLoading]    = useState(false);
 
+  // Mídia
+  const [mediaUpload,  setMediaUpload]  = useState(null); // { filePath, fileName, mediaType, sizeKb }
+  const [mediaPreview, setMediaPreview] = useState(null); // object URL — apenas para imagens
+  const [isUploading,  setIsUploading]  = useState(false);
+  const fileInputRef = useRef(null);
+
+  // Agendamento
+  const [startAt, setStartAt] = useState('');
+  const [endAt,   setEndAt]   = useState('');
+
   // ── Listas habilitadas ────────────────────────────────────────────────────
   const fetchEnabledLists = useCallback(async () => {
     setListsLoading(true);
@@ -364,6 +394,34 @@ export default function Disparo() {
     );
   }
 
+  // ── Upload de mídia ───────────────────────────────────────────────────────
+  async function handleMediaSelect(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    const preview = file.type.startsWith('image') ? URL.createObjectURL(file) : null;
+    setMediaPreview(preview);
+    setIsUploading(true);
+    setFeedback(null);
+    try {
+      const { data } = await uploadMedia(file);
+      setMediaUpload(data);
+    } catch (err) {
+      setFeedback({ type: 'error', message: `Upload falhou: ${err.response?.data?.error ?? err.message}` });
+      if (preview) URL.revokeObjectURL(preview);
+      setMediaPreview(null);
+    } finally {
+      setIsUploading(false);
+    }
+  }
+
+  function handleMediaClear() {
+    if (mediaPreview) URL.revokeObjectURL(mediaPreview);
+    setMediaUpload(null);
+    setMediaPreview(null);
+  }
+
   // ── Iniciar ───────────────────────────────────────────────────────────────
   async function handleStart() {
     const id = campaignId.trim();
@@ -378,6 +436,11 @@ export default function Disparo() {
         durationHours,
         maxPerZap,
         zaps,
+        startAt:       startAt ? new Date(startAt).toISOString() : null,
+        endAt:         endAt   ? new Date(endAt).toISOString()   : null,
+        media:         mediaUpload
+          ? { filePath: mediaUpload.filePath, mediaType: mediaUpload.mediaType }
+          : null,
       });
       setIsPlanModalOpen(false);
       setFeedback({
@@ -409,7 +472,7 @@ export default function Disparo() {
 
   const isRunning   = campaignState?.running;
   const canStop     = isRunning && !campaignState?.stopRequested;
-  const canOpenPlan = !!campaignId.trim() && texts.some((t) => t.trim()) && !isRunning;
+  const canOpenPlan = !!campaignId.trim() && texts.some((t) => t.trim()) && !isRunning && !isUploading;
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -421,6 +484,9 @@ export default function Disparo() {
           maxPerZap={maxPerZap}
           zaps={zaps}
           texts={texts}
+          media={mediaUpload}
+          startAt={startAt}
+          endAt={endAt}
           isStarting={isStarting}
           onStart={handleStart}
           onClose={() => setIsPlanModalOpen(false)}
@@ -544,7 +610,7 @@ export default function Disparo() {
           {/* ── Conteúdo da Mensagem ──────────────────────────────────────── */}
           <Card title="Conteúdo da Mensagem" icon={MessageSquare}>
             <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-              O sistema sorteará um dos textos preenchidos a cada início de campanha.
+              O sistema sorteará um dos textos preenchidos a cada envio.
               Preencha pelo menos um.
             </p>
             {['A', 'B', 'C'].map((label, i) => (
@@ -563,6 +629,123 @@ export default function Disparo() {
                 />
               </div>
             ))}
+          </Card>
+
+          {/* ── Mídia da Campanha ─────────────────────────────────────────── */}
+          <Card title="Mídia da Campanha (opcional)" icon={ImageIcon}>
+            <p className="text-xs text-gray-500">
+              Imagem ou vídeo enviado junto com a mensagem. O arquivo é carregado uma vez
+              e reutilizado para toda a campanha sem repetir o upload a cada envio.
+            </p>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,video/mp4,video/3gpp"
+              className="hidden"
+              onChange={handleMediaSelect}
+              disabled={isRunning || isUploading}
+            />
+
+            {!mediaUpload && !isUploading && (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isRunning}
+                className="flex items-center justify-center gap-2 w-full px-4 py-8 rounded-xl
+                           border-2 border-dashed border-gray-300 hover:border-emerald-400
+                           text-sm text-gray-500 hover:text-emerald-600 transition
+                           disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Upload size={16} />
+                Escolher arquivo (JPG, PNG, WEBP, MP4)
+              </button>
+            )}
+
+            {isUploading && (
+              <div className="flex items-center gap-3 px-4 py-6 text-sm text-gray-500
+                              border-2 border-dashed border-gray-200 rounded-xl justify-center">
+                <Loader2 size={15} className="animate-spin text-emerald-500" />
+                Enviando para o servidor...
+              </div>
+            )}
+
+            {mediaUpload && !isUploading && (
+              <div className="rounded-xl border border-gray-200 overflow-hidden">
+                {mediaPreview ? (
+                  <img
+                    src={mediaPreview}
+                    alt="preview"
+                    className="w-full h-40 object-cover"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-28 bg-gray-100 gap-2">
+                    <Film size={28} className="text-gray-400" />
+                    <span className="text-xs text-gray-400">Vídeo</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between px-4 py-3 bg-gray-50">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-700 truncate">{mediaUpload.fileName}</p>
+                    <p className="text-xs text-gray-400 capitalize">{mediaUpload.mediaType} · {mediaUpload.sizeKb} KB</p>
+                  </div>
+                  <button
+                    onClick={handleMediaClear}
+                    disabled={isRunning}
+                    title="Remover mídia"
+                    className="ml-3 flex-shrink-0 text-gray-400 hover:text-red-500 transition
+                               disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </Card>
+
+          {/* ── Agendamento ───────────────────────────────────────────────── */}
+          <Card title="Agendamento (opcional)" icon={Calendar}>
+            <p className="text-xs text-gray-500">
+              Deixe em branco para iniciar imediatamente e sem data de encerramento.
+              A janela diária 08:00–19:45 é sempre respeitada, independente do período configurado.
+            </p>
+
+            <div>
+              <InputLabel>Data e Hora de Início</InputLabel>
+              <input
+                type="datetime-local"
+                value={startAt}
+                onChange={(e) => setStartAt(e.target.value)}
+                disabled={isRunning}
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-800
+                           focus:outline-none focus:ring-2 focus:ring-emerald-500
+                           disabled:bg-gray-50 disabled:cursor-not-allowed transition"
+              />
+            </div>
+
+            <div>
+              <InputLabel>Data e Hora de Fim</InputLabel>
+              <input
+                type="datetime-local"
+                value={endAt}
+                onChange={(e) => setEndAt(e.target.value)}
+                disabled={isRunning}
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-800
+                           focus:outline-none focus:ring-2 focus:ring-emerald-500
+                           disabled:bg-gray-50 disabled:cursor-not-allowed transition"
+              />
+            </div>
+
+            {(startAt || endAt) && (
+              <button
+                type="button"
+                onClick={() => { setStartAt(''); setEndAt(''); }}
+                disabled={isRunning}
+                className="text-xs text-gray-400 hover:text-red-500 transition disabled:opacity-40"
+              >
+                Limpar agendamento
+              </button>
+            )}
           </Card>
         </div>
 
