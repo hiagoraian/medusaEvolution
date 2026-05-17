@@ -59,6 +59,7 @@ export async function forwardToAdminGroup(incomingMsg) {
         message.extendedTextMessage?.text      ??
         '[Mensagem sem texto]';
 
+      console.log(`[INBOUND] sendText → zap=${adminZap} | group=${groupJid} | textLen=${(header + text).length}`);
       await sendText(adminZap, groupJid, header + text);
       break;
     }

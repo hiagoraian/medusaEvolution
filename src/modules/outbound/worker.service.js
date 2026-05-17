@@ -95,7 +95,12 @@ export async function startOutboundWorkers() {
         const textoSorteado = sortearTexto(task);
         const b64 = getMediaBase64(mediaFilePath);
         if (b64) {
-          await sendMedia(accountId, phone, b64, mediaType, textoSorteado);
+          // Envia imagem sem legenda e texto separado (parece mais natural no WhatsApp)
+          await sendMedia(accountId, phone, b64, mediaType, '');
+          if (textoSorteado) {
+            await sleep(2_000 + Math.floor(Math.random() * 3_000));
+            await sendText(accountId, phone, textoSorteado);
+          }
         } else if (textoSorteado) {
           console.warn(`[WORKER] Arquivo de mídia ausente para ${phone} — enviando apenas texto.`);
           await sendText(accountId, phone, textoSorteado);
