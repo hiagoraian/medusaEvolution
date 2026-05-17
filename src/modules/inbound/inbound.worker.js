@@ -46,8 +46,10 @@ export async function startInboundWorker() {
       // Erros permanentes (4xx): descarta — requeue causaria loop infinito.
       // Causas comuns: ADMIN_GROUP_JID inválido, tipo de mensagem não suportado.
       if (httpStatus >= 400 && httpStatus < 500) {
+        const body = err.response?.data;
         console.warn(
-          `[INBOUND] ✗ Erro permanente (${httpStatus}) para ${messageType} de +${phone} — descartando.`
+          `[INBOUND] ✗ Erro permanente (${httpStatus}) para ${messageType} de +${phone} — descartando. ` +
+          `Corpo: ${JSON.stringify(body)?.slice(0, 300)}`
         );
         ack();
         return;
