@@ -18,8 +18,9 @@ async function processTask(task, ack, nack) {
     return;
   }
 
-  const delay = humanDelay();
-  console.log(`[WARMUP] Aguardando ${(delay / 1000).toFixed(1)}s antes de enviar ${type?.toUpperCase()} via ${accountId}...`);
+  const delay = humanDelay() + (task.extraDelayMs ?? 0);
+  const label = task.extraDelayMs ? 'REPLY' : type?.toUpperCase();
+  console.log(`[WARMUP] Aguardando ${(delay / 1000).toFixed(1)}s antes de enviar ${label} via ${accountId}...`);
   await sleep(delay);
 
   switch (type) {

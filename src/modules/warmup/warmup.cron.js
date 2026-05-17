@@ -103,19 +103,30 @@ async function tick() {
 
   let published = 0;
   for (let i = 0; i < numPairs; i++) {
-    const sender   = shuffled[i * 2];
-    const receiver = shuffled[i * 2 + 1];
-    const targetJid = phonesMap[receiver];
+    const sender      = shuffled[i * 2];
+    const receiver    = shuffled[i * 2 + 1];
+    const receiverJid = phonesMap[receiver];
+    const senderJid   = phonesMap[sender];
 
-    if (!targetJid) {
+    if (!receiverJid) {
       console.warn(`[WARMUP-CRON] JID de "${receiver}" não encontrado na Evolution API — par ignorado.`);
       continue;
     }
 
-    const task = generateWarmupTask(sender, targetJid, intensity);
+    // Envio direto: sender → receiver
+    const task = generateWarmupTask(sender, receiverJid, intensity);
     publishMessage(QUEUES.WARMUP, task);
-    console.log(`[WARMUP-CRON] Par ${i + 1}: ${sender} → ${receiver} (${targetJid}) [${task.type}]`);
+    console.log(`[WARMUP-CRON] Par ${i + 1}: ${sender} → ${receiver} [${task.type}]`);
     published++;
+
+    // Resposta (ping-pong): receiver → sender com delay extra 30s–2min
+    if (senderJid) {
+      const replyDelayMs = 30_000 + Math.floor(Math.random() * 90_000);
+      const reply = generateWarmupTask(receiver, senderJid, intensity);
+      publishMessage(QUEUES.WARMUP, { ...reply, extraDelayMs: replyDelayMs });
+      console.log(`[WARMUP-CRON] Par ${i + 1}: ${receiver} → ${sender} [REPLY +${(replyDelayMs / 1000).toFixed(0)}s]`);
+      published++;
+    }
   }
 
   console.log(`[WARMUP-CRON] Ciclo encerrado. ${published} mensagem${published !== 1 ? 's' : ''} enfileirada${published !== 1 ? 's' : ''}.`);
