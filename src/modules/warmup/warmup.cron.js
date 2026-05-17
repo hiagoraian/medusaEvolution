@@ -76,6 +76,11 @@ async function tick() {
     return;
   }
 
+  if (!isWithinWindow(allowedDays)) {
+    console.log('[WARMUP-CRON] Fora da janela de operação (08:00–20:00) — hibernando.');
+    return;
+  }
+
   if (!selectedZaps.length) {
     console.log('[WARMUP-CRON] Nenhum Zap configurado — abortando ciclo.');
     return;
