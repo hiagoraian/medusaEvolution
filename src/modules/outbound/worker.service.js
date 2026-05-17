@@ -123,19 +123,28 @@ export async function startOutboundWorkers() {
         typeof errBody === 'string' ? errBody : errBody?.message ?? err.message ?? ''
       ).toLowerCase();
 
-      const isPermanent =
-        httpStatus === 400         ||
+      const isInvalidNumber =
+        (httpStatus === 400 && (
+          errMsg.includes('invalid') ||
+          errMsg.includes('not exists') ||
+          errMsg.includes('does not exist') ||
+          errMsg.includes('no exists') ||
+          errMsg.includes('not registered')
+        )) ||
         errMsg.includes('invalid') ||
         errMsg.includes('not exists') ||
         errMsg.includes('does not exist');
 
+      const isPermanent = httpStatus === 400;
+
       if (isPermanent) {
+        const label = isInvalidNumber ? 'Número inválido' : 'Erro 400';
         console.warn(
-          `[WORKER] Número inválido (${phone}) — descartando. ` +
-          `HTTP: ${httpStatus ?? 'N/A'} | ${errMsg}`
+          `[WORKER] ${label} (${phone}) — descartando. ` +
+          `HTTP: ${httpStatus} | corpo: ${JSON.stringify(errBody)?.slice(0, 200)}`
         );
         ack();
-        await reportStatus(id, 'invalido', phone);
+        await reportStatus(id, isInvalidNumber ? 'invalido' : 'erro', phone);
       } else {
         console.error(
           `[WORKER] Falha transitória para +${phone} via "${accountId}". ` +
