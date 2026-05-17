@@ -4,8 +4,8 @@ import { startCampaign, stopCampaign, getCampaignState } from './orchestrator.se
 export async function startHandler(req, res) {
   const {
     campaignId,
+    campaignName,
     texts        = [],
-    durationHours = 1,
     maxPerZap    = 30,
     zaps         = '',
     startAt,
@@ -34,8 +34,8 @@ export async function startHandler(req, res) {
         : []);
 
   const result = await startCampaign(campaignId, normalizedTexts, {
-    durationHours: Number(durationHours) || 1,
-    maxPerZap:     Number(maxPerZap)     || 30,
+    campaignName:  campaignName?.trim() || campaignId,
+    maxPerZap:     Number(maxPerZap) || 30,
     zaps:          normalizedZaps,
     startAt:       startAt ?? null,
     endAt:         endAt   ?? null,

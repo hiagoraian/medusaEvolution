@@ -70,6 +70,19 @@ async function getOnlineAccounts(allowedZaps = []) {
 
 // ── Calculadora de delay flexível ─────────────────────────────────────────────
 
+// Deriva a duração total do período agendado; fallback para 4h sem agendamento.
+function durationFromSchedule(startAt, endAt) {
+  if (startAt && endAt) {
+    const ms = new Date(endAt) - new Date(startAt);
+    return Math.max(ms / 3_600_000, 0.25);
+  }
+  if (endAt) {
+    const ms = new Date(endAt) - Date.now();
+    return ms > 0 ? Math.max(ms / 3_600_000, 0.25) : 4;
+  }
+  return 4;
+}
+
 function calcDelay(durationHours, totalPending) {
   if (!totalPending) return MIN_DELAY_MS;
   const totalMs        = durationHours * 60 * 60 * 1_000;
@@ -214,13 +227,16 @@ export async function startCampaign(campaignId, texts, options = {}) {
     };
   }
 
+  const startAt = options.startAt ?? null;
+  const endAt   = options.endAt   ?? null;
+
   const opts = {
-    durationHours: options.durationHours ?? 1,
-    maxPerZap:     options.maxPerZap     ?? 30,
+    durationHours: durationFromSchedule(startAt, endAt),
+    maxPerZap:     options.maxPerZap ?? 30,
     zaps:          Array.isArray(options.zaps) ? options.zaps : [],
-    startAt:       options.startAt ?? null,
-    endAt:         options.endAt   ?? null,
-    media:         options.media   ?? null,
+    startAt,
+    endAt,
+    media:         options.media ?? null,
   };
 
   // Arma a campanha: converte 'importado' → 'pendente' (lista em repouso vira ativa)
@@ -231,6 +247,7 @@ export async function startCampaign(campaignId, texts, options = {}) {
   stopRequested     = false;
   _activeCampaign   = {
     campaignId,
+    campaignName: options.campaignName ?? campaignId,
     texts,
     options: opts,
     startedAt: new Date().toISOString(),
@@ -239,7 +256,7 @@ export async function startCampaign(campaignId, texts, options = {}) {
   console.log(
     `[ORCHESTRATOR] Iniciando campanha "${campaignId}" | ` +
     `${texts.length} texto(s) | ` +
-    `Duração: ${opts.durationHours}h | ` +
+    `Duração calculada: ${opts.durationHours.toFixed(1)}h | ` +
     `Máx/Zap: ${opts.maxPerZap}`
   );
 

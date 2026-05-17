@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Send, Clock, ShieldAlert, MessageSquare, Eye, Smartphone,
+  Send, ShieldAlert, MessageSquare, Eye, Smartphone,
   Square, RefreshCw, CheckCircle, AlertCircle, Loader2, X, Zap,
   Image as ImageIcon, Film, Upload, Calendar,
 } from 'lucide-react';
@@ -58,77 +58,57 @@ function formatLocal(dtLocal) {
   return `${d}/${m}/${y} ${time}`;
 }
 
-// ── Modal: Visualizar Plano ───────────────────────────────────────────────────
+// ── Modal: Confirmar Disparo ──────────────────────────────────────────────────
 
 function ModalPlan({
-  campaignId, durationHours, maxPerZap, zaps, texts,
+  campaignName, campaignId, maxPerZap, zaps, texts,
   media, startAt, endAt,
   isStarting, onStart, onClose,
 }) {
-  const delayMin    = maxPerZap > 0 ? ((durationHours * 60) / maxPerZap).toFixed(1) : '∞';
   const zapList     = Array.isArray(zaps) ? zaps : [];
   const filledTexts = texts.map((t, i) => ({ label: ['A','B','C'][i], text: t })).filter((t) => t.text.trim());
 
   return (
     <ModalBackdrop onClose={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
 
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-          <div className="flex items-center gap-2.5">
-            <Eye size={18} className="text-emerald-500" />
-            <h2 className="text-base font-semibold text-gray-800">Visualizar Plano</h2>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <Send size={16} className="text-emerald-500" />
+            <h2 className="text-sm font-semibold text-gray-800">Confirmar Disparo</h2>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
 
-        <div className="px-6 py-5 space-y-4">
-          <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-            <Row label="Campanha ID"  value={campaignId || '—'} />
-            <Row label="Duração"      value={`${durationHours} hora${durationHours !== 1 ? 's' : ''}`} />
-            <Row label="Máx. / Zap"   value={`${maxPerZap} mensagens`} />
-            <Row
-              label="Zaps Alocados"
-              value={zapList.length ? zapList.join(', ') : '— (detecta automaticamente)'}
-            />
-            {media && (
-              <Row label="Mídia" value={`${media.fileName} (${media.sizeKb} KB)`} />
+        <div className="px-5 py-4 space-y-3">
+          <div className="bg-gray-50 rounded-xl p-3 space-y-2">
+            {campaignName && campaignName !== campaignId && (
+              <Row label="Nome" value={campaignName} />
             )}
-            {startAt && (
-              <Row label="Início agendado" value={formatLocal(startAt)} />
+            <Row label="Lista"      value={campaignId || '—'} />
+            <Row label="Máx. / Zap" value={`${maxPerZap} msgs`} />
+            {zapList.length > 0 && (
+              <Row label="Zaps" value={zapList.join(', ')} />
             )}
-            {endAt && (
-              <Row label="Fim agendado" value={formatLocal(endAt)} />
-            )}
-          </div>
-
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-1">
-            <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">
-              Matemática de Segurança
-            </p>
-            <p className="text-sm text-amber-800">
-              Com <strong>{durationHours}h</strong> e limite de{' '}
-              <strong>{maxPerZap} msgs/zap</strong>, o delay estimado entre disparos é de{' '}
-              <strong>{delayMin} min por Zap</strong>.
-            </p>
-            <p className="text-xs text-amber-600 mt-1">
-              Fórmula: ({durationHours}h × 60 min) ÷ {maxPerZap} msgs = {delayMin} min/msg
-            </p>
+            {startAt && <Row label="Início" value={formatLocal(startAt)} />}
+            {endAt   && <Row label="Fim"    value={formatLocal(endAt)}   />}
+            {media   && <Row label="Mídia"  value={`${media.fileName} (${media.sizeKb} KB)`} />}
           </div>
 
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-              Textos disponíveis para sorteio ({filledTexts.length})
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+              {filledTexts.length} variação{filledTexts.length !== 1 ? 'ões' : ''} de texto
             </p>
             {filledTexts.length === 0 ? (
               <p className="text-sm text-red-500">Nenhum texto preenchido.</p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-1.5 max-h-36 overflow-y-auto">
                 {filledTexts.map(({ label, text }) => (
                   <div key={label} className="flex gap-2">
-                    <span className="flex-shrink-0 text-xs font-bold text-gray-400 mt-0.5 w-4">{label}</span>
-                    <p className="text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2 flex-1 leading-relaxed">
+                    <span className="flex-shrink-0 text-xs font-bold text-gray-400 w-4">{label}</span>
+                    <p className="text-xs text-gray-600 bg-gray-50 rounded px-2 py-1.5 flex-1 leading-relaxed line-clamp-2">
                       {text}
                     </p>
                   </div>
@@ -138,13 +118,13 @@ function ModalPlan({
           </div>
         </div>
 
-        <div className="flex gap-3 px-6 pb-6">
+        <div className="flex gap-2 px-5 pb-5">
           <button
             onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl border border-gray-300 text-sm font-medium
+            className="flex-1 py-2.5 rounded-xl border border-gray-300 text-sm
                        text-gray-600 hover:bg-gray-50 transition"
           >
-            Voltar / Editar
+            Cancelar
           </button>
           <button
             onClick={onStart}
@@ -156,8 +136,8 @@ function ModalPlan({
                        shadow-md transition-colors duration-150"
           >
             {isStarting
-              ? <><Loader2 size={15} className="animate-spin" /> Iniciando...</>
-              : <><Send size={15} /> Iniciar Campanha</>
+              ? <><Loader2 size={14} className="animate-spin" /> Iniciando...</>
+              : <><Send size={14} /> Iniciar</>
             }
           </button>
         </div>
@@ -314,8 +294,8 @@ function ModalTest({ texts, instances, onClose }) {
 
 export default function Disparo() {
   const [campaignId,      setCampaignId]      = useState('');
+  const [campaignName,    setCampaignName]    = useState('');
   const [zaps,            setZaps]            = useState([]);
-  const [durationHours,   setDurationHours]   = useState(1);
   const [maxPerZap,       setMaxPerZap]       = useState(30);
   const [texts,           setTexts]           = useState(['', '', '']);
   const [instances,       setInstances]       = useState({});
@@ -431,14 +411,14 @@ export default function Disparo() {
     setFeedback(null);
     try {
       const { data } = await startCampaign({
-        campaignId:    id,
-        texts:         texts.filter((t) => t.trim()),
-        durationHours,
+        campaignId:   id,
+        campaignName: campaignName.trim() || id,
+        texts:        texts.filter((t) => t.trim()),
         maxPerZap,
         zaps,
-        startAt:       startAt ? new Date(startAt).toISOString() : null,
-        endAt:         endAt   ? new Date(endAt).toISOString()   : null,
-        media:         mediaUpload
+        startAt:      startAt ? new Date(startAt).toISOString() : null,
+        endAt:        endAt   ? new Date(endAt).toISOString()   : null,
+        media:        mediaUpload
           ? { filePath: mediaUpload.filePath, mediaType: mediaUpload.mediaType }
           : null,
       });
@@ -479,8 +459,8 @@ export default function Disparo() {
     <>
       {isPlanModalOpen && (
         <ModalPlan
+          campaignName={campaignName.trim() || campaignId}
           campaignId={campaignId}
-          durationHours={durationHours}
           maxPerZap={maxPerZap}
           zaps={zaps}
           texts={texts}
@@ -534,6 +514,20 @@ export default function Disparo() {
           {/* ── Regras de Envio ───────────────────────────────────────────── */}
           <Card title="Regras de Envio" icon={ShieldAlert}>
             <div>
+              <InputLabel>Nome da Campanha (relatório)</InputLabel>
+              <input
+                type="text"
+                value={campaignName}
+                onChange={(e) => setCampaignName(e.target.value)}
+                placeholder="Ex: Maio 2026 — Clientes Novos"
+                disabled={isRunning}
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-800
+                           placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500
+                           disabled:bg-gray-50 disabled:cursor-not-allowed transition"
+              />
+            </div>
+
+            <div>
               <div className="flex items-center justify-between mb-1.5">
                 <InputLabel>Lista de Destino</InputLabel>
                 <button
@@ -573,37 +567,23 @@ export default function Disparo() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <InputLabel>
-                  <span className="flex items-center gap-1.5">
-                    <Clock size={13} className="text-gray-400" /> Duração (horas)
-                  </span>
-                </InputLabel>
-                <input
-                  type="number" min={1} max={24} value={durationHours}
-                  onChange={(e) => setDurationHours(Number(e.target.value))}
-                  disabled={isRunning}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-800
-                             focus:outline-none focus:ring-2 focus:ring-emerald-500
-                             disabled:bg-gray-50 disabled:cursor-not-allowed transition"
-                />
-              </div>
-              <div>
-                <InputLabel>
-                  <span className="flex items-center gap-1.5">
-                    <ShieldAlert size={13} className="text-gray-400" /> Máx. msgs / Zap
-                  </span>
-                </InputLabel>
-                <input
-                  type="number" min={1} max={200} value={maxPerZap}
-                  onChange={(e) => setMaxPerZap(Number(e.target.value))}
-                  disabled={isRunning}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-800
-                             focus:outline-none focus:ring-2 focus:ring-emerald-500
-                             disabled:bg-gray-50 disabled:cursor-not-allowed transition"
-                />
-              </div>
+            <div>
+              <InputLabel>
+                <span className="flex items-center gap-1.5">
+                  <ShieldAlert size={13} className="text-gray-400" /> Máx. msgs / Zap
+                </span>
+              </InputLabel>
+              <input
+                type="number" min={1} max={200} value={maxPerZap}
+                onChange={(e) => setMaxPerZap(Number(e.target.value))}
+                disabled={isRunning}
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-800
+                           focus:outline-none focus:ring-2 focus:ring-emerald-500
+                           disabled:bg-gray-50 disabled:cursor-not-allowed transition"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Se um Zap cair, os outros assumem até atingir esse limite.
+              </p>
             </div>
           </Card>
 
