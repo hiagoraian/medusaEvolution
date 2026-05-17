@@ -886,8 +886,8 @@ export default function Listas() {
                             </button>
                             <button
                               onClick={() => handleReset(list.id)}
-                              disabled={resetting === list.id || list.pendentes === list.total}
-                              title="Resetar contatos para novo disparo"
+                              disabled={resetting === list.id || list.enfileirados + list.falhas === 0}
+                              title="Recuperar contatos presos (enfileirado/falha)"
                               className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg
                                          bg-blue-50 border border-blue-200 text-blue-700
                                          hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition">
@@ -895,7 +895,7 @@ export default function Listas() {
                                 ? <Loader2 size={12} className="animate-spin" />
                                 : <RotateCcw size={12} />
                               }
-                              Resetar
+                              Recuperar
                             </button>
                             <button
                               onClick={() => setDeleteTarget(list.id)}

@@ -92,12 +92,14 @@ export async function getLists() {
 
 // ── Resetar contatos para importado ──────────────────────────────────────────
 
+// Recupera contatos presos em voo (campanha caiu no meio do processo).
+// Não toca em enviado/invalido — esses preservam o histórico de relatórios.
 export async function resetListContacts(listId) {
   const { rowCount } = await query(
     `UPDATE messages_queue
      SET status = 'importado'
      WHERE campaign_id = $1
-       AND status NOT IN ('importado', 'pendente')`,
+       AND status IN ('enfileirado', 'falha_tecnica')`,
     [listId]
   );
   return rowCount ?? 0;
