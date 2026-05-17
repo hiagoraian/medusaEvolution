@@ -6,6 +6,7 @@ import {
   mergeLists,
   splitList,
   toggleListEnabled,
+  resetListContacts,
   deleteList,
   getListContacts,
   addContactsToList,
@@ -168,6 +169,19 @@ export async function removeContact(req, res) {
   } catch (err) {
     console.error(`[PIPELINE] Erro ao remover contato de "${id}":`, err.message);
     return res.status(500).json({ error: 'Falha ao remover contato.' });
+  }
+}
+
+// POST /api/pipeline/:id/reset
+export async function resetCampaign(req, res) {
+  const { id } = req.params;
+  try {
+    const count = await resetListContacts(id);
+    console.log(`[PIPELINE] Lista "${id}" resetada — ${count} contato(s) voltaram para "importado".`);
+    return res.json({ status: 'ok', listId: id, reset: count });
+  } catch (err) {
+    console.error(`[PIPELINE] Erro ao resetar "${id}":`, err.message);
+    return res.status(500).json({ error: 'Falha ao resetar lista.' });
   }
 }
 

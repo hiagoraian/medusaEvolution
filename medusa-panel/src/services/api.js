@@ -122,6 +122,10 @@ export function deleteList(id) {
   return api.delete(`/pipeline/${encodeURIComponent(id)}`);
 }
 
+export function resetList(listId) {
+  return api.post(`/pipeline/${encodeURIComponent(listId)}/reset`);
+}
+
 export function getListContacts(listId, page = 1, limit = 50, search = '') {
   return api.get(`/pipeline/${encodeURIComponent(listId)}/contacts`, {
     params: { page, limit, ...(search && { search }) },

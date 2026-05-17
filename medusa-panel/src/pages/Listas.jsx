@@ -3,10 +3,11 @@ import {
   UploadCloud, CheckCircle, FileSpreadsheet, X, AlertCircle,
   Scissors, GitMerge, ToggleLeft, ToggleRight, RefreshCw, Loader2,
   Trash2, CheckSquare, Pencil, Search, ChevronLeft, ChevronRight, UserMinus,
+  RotateCcw,
 } from 'lucide-react';
 import {
   uploadList, getLists, mergeLists, splitList, toggleList, deleteList,
-  getListContacts, addListContacts, removeListContact,
+  resetList, getListContacts, addListContacts, removeListContact,
 } from '../services/api.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -529,6 +530,7 @@ export default function Listas() {
   const [splitTarget,  setSplitTarget]  = useState(null); // { id, pendentes }
   const [deleteTarget, setDeleteTarget] = useState(null); // string (listId)
   const [editTarget,   setEditTarget]   = useState(null); // string (listId)
+  const [resetting,    setResetting]    = useState(null); // listId sendo resetado
 
   // ── Load lists ──────────────────────────────────────────────────────────────
   const fetchLists = useCallback(async () => {
@@ -582,6 +584,20 @@ export default function Listas() {
 
   function toggleSelectAll() {
     setSelectedIds((prev) => prev.length === lists.length ? [] : lists.map((l) => l.id));
+  }
+
+  // ── Resetar lista ───────────────────────────────────────────────────────────
+  async function handleReset(listId) {
+    setResetting(listId);
+    try {
+      const { data } = await resetList(listId);
+      setFeedback({ type: 'success', message: `"${listId}" resetada — ${data.reset} contato(s) prontos para novo disparo.` });
+      fetchLists();
+    } catch (err) {
+      setFeedback({ type: 'error', message: err.response?.data?.error ?? err.message });
+    } finally {
+      setResetting(null);
+    }
   }
 
   // ── Toggle enabled ──────────────────────────────────────────────────────────
@@ -867,6 +883,19 @@ export default function Listas() {
                                          bg-amber-50 border border-amber-200 text-amber-700
                                          hover:bg-amber-100 disabled:opacity-40 disabled:cursor-not-allowed transition">
                               <Scissors size={12} /> Dividir
+                            </button>
+                            <button
+                              onClick={() => handleReset(list.id)}
+                              disabled={resetting === list.id || list.pendentes === list.total}
+                              title="Resetar contatos para novo disparo"
+                              className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg
+                                         bg-blue-50 border border-blue-200 text-blue-700
+                                         hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                              {resetting === list.id
+                                ? <Loader2 size={12} className="animate-spin" />
+                                : <RotateCcw size={12} />
+                              }
+                              Resetar
                             </button>
                             <button
                               onClick={() => setDeleteTarget(list.id)}

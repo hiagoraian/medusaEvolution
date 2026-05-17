@@ -90,6 +90,19 @@ export async function getLists() {
   }));
 }
 
+// ── Resetar contatos para importado ──────────────────────────────────────────
+
+export async function resetListContacts(listId) {
+  const { rowCount } = await query(
+    `UPDATE messages_queue
+     SET status = 'importado'
+     WHERE campaign_id = $1
+       AND status NOT IN ('importado', 'pendente')`,
+    [listId]
+  );
+  return rowCount ?? 0;
+}
+
 // ── Habilitar / Desabilitar lista ─────────────────────────────────────────────
 
 export async function toggleListEnabled(listId, enabled) {

@@ -6,6 +6,7 @@ import {
   mergeCampaigns,
   splitCampaign,
   toggleCampaign,
+  resetCampaign,
   deleteCampaign,
   getContacts,
   addContacts,
@@ -24,6 +25,7 @@ router.patch ('/lists/:listId/toggle', toggleCampaign);
 router.get   ('/:id/contacts',         getContacts);
 router.post  ('/:id/contacts',         addContacts);
 router.delete('/:id/contacts',         removeContact);
+router.post  ('/:id/reset',            resetCampaign);
 
 router.delete('/:id',                  deleteCampaign);
 
