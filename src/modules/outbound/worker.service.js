@@ -96,9 +96,17 @@ export async function startOutboundWorkers() {
         const b64 = getMediaBase64(mediaFilePath);
         if (b64) {
           await sendMedia(accountId, phone, b64, mediaType, textoSorteado);
-        } else {
+        } else if (textoSorteado) {
           console.warn(`[WORKER] Arquivo de mídia ausente para ${phone} — enviando apenas texto.`);
           await sendText(accountId, phone, textoSorteado);
+        } else {
+          console.error(
+            `[WORKER] Mídia ausente E texto vazio para ${phone} (id=${id}) — descartando. ` +
+            `texts=${JSON.stringify(task.texts)}, text=${JSON.stringify(task.text)}`
+          );
+          ack();
+          await reportStatus(id, 'erro', phone);
+          return;
         }
       } else if (type === 'media') {
         await sendMedia(accountId, phone, mediaUrl, mediaType, caption);
