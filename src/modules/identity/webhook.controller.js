@@ -106,6 +106,12 @@ export async function handleEvolutionWebhook(req, res) {
           const message     = msg.message ?? {};
           const messageType = Object.keys(message)[0] ?? 'unknown';
 
+          // Tipos internos do WhatsApp — descarta antes de entrar na fila
+          if (messageType === 'messageContextInfo'          ||
+              messageType === 'senderKeyDistributionMessage' ||
+              messageType === 'protocolMessage'              ||
+              messageType === 'reactionMessage') continue;
+
           // Payload completo — inbound.service extrai o que precisar
           publishMessage(QUEUES.INBOUND, {
             instance,
