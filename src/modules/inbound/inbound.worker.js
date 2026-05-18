@@ -6,6 +6,14 @@ import { fetchAllInstancesPhones }    from '../identity/evolution.client.js';
 // durante o delay, garantindo ≤ 15 msgs/min sem contador externo.
 const RATE_LIMIT_MS = 4_000;
 
+// Tipos internos do WhatsApp/Baileys — não são mensagens reais de usuário.
+const IGNORED_TYPES = new Set([
+  'messageContextInfo',
+  'senderKeyDistributionMessage',
+  'protocolMessage',
+  'reactionMessage',
+]);
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function isOwnFleetJid(remoteJid) {
@@ -25,6 +33,13 @@ export async function startInboundWorker() {
     const messageType = msg.messageType ?? 'unknown';
 
     try {
+      // Descarta tipos internos do WhatsApp (metadados, protocolo, etc.)
+      if (IGNORED_TYPES.has(messageType)) {
+        console.log(`[INBOUND] Tipo interno ignorado — ${messageType} de +${phone}`);
+        ack();
+        return;
+      }
+
       // Descarta mensagens de aquecimento (ping-pong entre ZAPs da frota)
       if (await isOwnFleetJid(remoteJid)) {
         console.log(`[INBOUND] Warmup ignorado — ${remoteJid} é da própria frota.`);
