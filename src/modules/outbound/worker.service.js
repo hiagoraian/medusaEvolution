@@ -1,6 +1,6 @@
-import { consumeQueue }            from '../../core/rabbitmq.js';
-import { isInstanceOnline }        from '../identity/cache.service.js';
-import { sendText, sendMedia }     from './evolution.outbound.client.js';
+import { consumeQueue }                        from '../../core/rabbitmq.js';
+import { isInstanceOnline, setInstanceOffline } from '../identity/cache.service.js';
+import { sendText, sendMedia }                  from './evolution.outbound.client.js';
 import { updateMessageStatus }     from '../pipeline/pipeline.repository.js';
 import fs                          from 'fs';
 
@@ -136,17 +136,27 @@ export async function startOutboundWorkers() {
         typeof errBody === 'string' ? errBody : errBody?.message ?? err.message ?? ''
       ).toLowerCase();
 
+      const isConnectionClosed = errMsg.includes('connection closed');
+
       const isInvalidNumber =
+        !isConnectionClosed &&
         (httpStatus === 400 && (
           errMsg.includes('invalid') ||
           errMsg.includes('not exists') ||
           errMsg.includes('does not exist') ||
           errMsg.includes('no exists') ||
           errMsg.includes('not registered')
-        )) ||
-        errMsg.includes('invalid') ||
-        errMsg.includes('not exists') ||
-        errMsg.includes('does not exist');
+        ));
+
+      // Connection Closed = instância morreu em voo — marca offline e recoloca na fila
+      if (isConnectionClosed) {
+        console.warn(
+          `[WORKER] "${accountId}" Connection Closed para +${phone} — marcando offline e devolvendo msg.`
+        );
+        await setInstanceOffline(accountId).catch(() => {});
+        nack(true);
+        return;
+      }
 
       const isPermanent = httpStatus === 400;
 

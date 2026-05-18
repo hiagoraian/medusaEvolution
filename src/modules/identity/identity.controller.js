@@ -147,14 +147,25 @@ export async function deleteInstanceHandler(req, res) {
 
   console.log(`[IDENTITY] Excluindo instância "${accountId}"...`);
 
+  // Passo 1: Logout primeiro — força Evolution a mudar estado de 'open' → 'close'
+  // antes do delete, o que aumenta a chance de o delete ser aceito.
+  try {
+    await logoutInstance(accountId);
+    console.log(`[IDENTITY] "${accountId}" deslogada antes da exclusão.`);
+  } catch {
+    // Ignorado — instância pode não estar conectada; prossegue para o delete
+  }
+
+  // Passo 2: Delete
   try {
     await deleteInstance(accountId);
     console.log(`[IDENTITY] "${accountId}" removida da Evolution API.`);
   } catch (err) {
-    // Mesmo que a Evolution falhe (instância já não existe), limpa o Redis
+    // Mesmo que a Evolution falhe, limpa o Redis (instância some do painel)
     console.warn(`[IDENTITY] Evolution retornou erro ao excluir "${accountId}":`, err.response?.data ?? err.message);
   }
 
+  // Passo 3: Limpa Redis sempre
   await Promise.allSettled([
     setInstanceOffline(accountId),
     deleteConnectData(accountId),

@@ -33,8 +33,8 @@ export function getDashboardStats() {
 
 // ── Campanha / Teste ──────────────────────────────────────────────────────────
 
-export function sendTestMessage(accountId, phone, text) {
-  return api.post('/campaign/test-shoot', { accountId, phone, text });
+export function sendTestMessage(accountId, phone, text, media = null) {
+  return api.post('/campaign/test-shoot', { accountId, phone, text, media });
 }
 
 // ── Orquestrador / Disparo ────────────────────────────────────────────────────

@@ -148,7 +148,7 @@ function ModalPlan({
 
 // ── Modal: Envio Teste ────────────────────────────────────────────────────────
 
-function ModalTest({ texts, instances, onClose }) {
+function ModalTest({ texts, instances, mediaUpload, onClose }) {
   const textOptions = texts.map((t, i) => ({ label: ['A','B','C'][i], text: t, i }))
                            .filter((o) => o.text.trim());
 
@@ -167,14 +167,17 @@ function ModalTest({ texts, instances, onClose }) {
     const phone = testPhone.trim();
     const text  = texts[selectedIdx]?.trim();
 
-    if (!zap || !phone || !text) {
+    if (!zap || !phone || (!text && !mediaUpload)) {
       return setTestStatus({ type: 'error', message: 'Preencha todos os campos.' });
     }
 
     setIsSending(true);
     setTestStatus(null);
     try {
-      await sendTestMessage(zap, phone, text);
+      const media = mediaUpload
+        ? { filePath: mediaUpload.filePath, mediaType: mediaUpload.mediaType }
+        : null;
+      await sendTestMessage(zap, phone, text || null, media);
       setTestStatus({ type: 'success', message: `Mensagem enfileirada para +${phone} via ${zap}.` });
     } catch (err) {
       setTestStatus({ type: 'error', message: err.response?.data?.error ?? err.message });
@@ -183,7 +186,7 @@ function ModalTest({ texts, instances, onClose }) {
     }
   }
 
-  const canSend = !!testZap && !!testPhone.trim() && textOptions.length > 0;
+  const canSend = !!testZap && !!testPhone.trim() && (textOptions.length > 0 || !!mediaUpload);
 
   return (
     <ModalBackdrop onClose={onClose}>
@@ -235,8 +238,8 @@ function ModalTest({ texts, instances, onClose }) {
           <div>
             <InputLabel>Texto a Enviar</InputLabel>
             {textOptions.length === 0 ? (
-              <p className="text-sm text-red-500 bg-red-50 rounded-lg px-4 py-3 border border-red-200">
-                Nenhum texto preenchido na campanha.
+              <p className="text-sm text-gray-400 bg-gray-50 rounded-lg px-4 py-3 border border-gray-200">
+                Nenhum texto preenchido — será enviada apenas a mídia.
               </p>
             ) : (
               <select
@@ -253,6 +256,15 @@ function ModalTest({ texts, instances, onClose }) {
               </select>
             )}
           </div>
+
+          {mediaUpload && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg">
+              <ImageIcon size={13} className="text-emerald-500 flex-shrink-0" />
+              <span className="text-xs text-emerald-700 truncate">
+                Mídia incluída: <strong>{mediaUpload.fileName}</strong> ({mediaUpload.sizeKb} KB)
+              </span>
+            </div>
+          )}
 
           {testStatus && (
             <div className={`flex items-start gap-3 rounded-xl px-4 py-3 border text-sm
@@ -476,6 +488,7 @@ export default function Disparo() {
         <ModalTest
           texts={texts}
           instances={instances}
+          mediaUpload={mediaUpload}
           onClose={() => setIsTestModalOpen(false)}
         />
       )}
