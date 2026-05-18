@@ -1,7 +1,7 @@
 import { createInstance, fetchInstanceState, reconnectInstance, logoutInstance, deleteInstance, fetchGroups } from './evolution.client.js';
 import {
   saveConnectData, getConnectData, isInstanceOnline, listInstanceStatuses,
-  setInstanceOnline, setInstanceOffline, deleteConnectData,
+  setInstanceOnline, setInstanceOffline, deleteConnectData, isExplicitlyOffline,
 } from './cache.service.js';
 import { resolveProxy } from './proxy.service.js';
 import { ZTE_CONFIG } from '../network/network.config.js';
@@ -37,8 +37,24 @@ export async function startInstance(req, res) {
   const state = await fetchInstanceState(accountId);
   console.log(`[DEBUG] Estado de "${accountId}" na Evolution: ${state ?? 'não existe'}`);
 
-  // Já conectada → sincroniza Redis e avisa frontend
+  // Já conectada → verifica se não é uma ghost connection antes de sincronizar
   if (state === 'open') {
+    const ghostSuspect = await isExplicitlyOffline(accountId);
+    if (ghostSuspect) {
+      // Redis foi explicitamente marcado offline (Connection Closed ou delete anterior)
+      // mas Evolution ainda reporta 'open' — é uma conexão fantasma.
+      // Forçamos logout + reconexão para gerar novo QR.
+      console.warn(`[DEBUG] "${accountId}" — ghost connection detectada (Evolution=open, Redis=close). Forçando reconexão...`);
+      try {
+        await logoutInstance(accountId).catch(() => {});
+        await doReconnectAndSaveQr(accountId);
+        return res.json({ message: 'Reconexão forçada — aguardando QR Code.', ghostFixed: true });
+      } catch (err) {
+        const detail = err.response?.data ?? err.message;
+        console.error(`[DEBUG] Falha ao corrigir ghost de "${accountId}":`, detail);
+        return res.status(500).json({ error: 'Falha ao reconectar instância ghost.', detail });
+      }
+    }
     await setInstanceOnline(accountId);
     console.log(`[DEBUG] "${accountId}" já está online — Redis sincronizado.`);
     return res.json({ message: 'Instância já conectada.', alreadyConnected: true });

@@ -32,6 +32,13 @@ export async function isInstanceOnline(accountId) {
   return status === 'open';
 }
 
+// Retorna true apenas se explicitamente marcada como 'close' (não se a chave não existe).
+// Usado para detectar ghost connections: Evolution diz 'open', mas nós marcamos offline.
+export async function isExplicitlyOffline(accountId) {
+  const status = await getCache(`status:${accountId}`);
+  return status === 'close';
+}
+
 // Varre todas as chaves status:* e retorna [{id, online}]
 export async function listInstanceStatuses() {
   const { redisClient } = await import('../../core/redis.js');
