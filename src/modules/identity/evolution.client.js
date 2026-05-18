@@ -63,6 +63,12 @@ export async function logoutInstance(accountId) {
   return data;
 }
 
+// Reinicia a sessão Baileys sem remover a instância — quebra estado 'open' travado
+export async function restartInstance(accountId) {
+  const { data } = await client.put(`/instance/restart/${accountId}`);
+  return data;
+}
+
 // Remove a instância permanentemente da Evolution API
 export async function deleteInstance(accountId) {
   const { data } = await client.delete(`/instance/delete/${accountId}`);

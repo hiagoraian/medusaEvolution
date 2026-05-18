@@ -1,4 +1,4 @@
-import { createInstance, fetchInstanceState, reconnectInstance, logoutInstance, deleteInstance, fetchGroups } from './evolution.client.js';
+import { createInstance, fetchInstanceState, reconnectInstance, logoutInstance, restartInstance, deleteInstance, fetchGroups } from './evolution.client.js';
 import {
   saveConnectData, getConnectData, isInstanceOnline, listInstanceStatuses,
   setInstanceOnline, setInstanceOffline, deleteConnectData, isExplicitlyOffline,
@@ -46,7 +46,13 @@ export async function startInstance(req, res) {
       // Forçamos logout + reconexão para gerar novo QR.
       console.warn(`[DEBUG] "${accountId}" — ghost connection detectada (Evolution=open, Redis=close). Forçando reconexão...`);
       try {
+        // 1. Tenta logout (pode falhar se o socket já caiu — ignoramos)
         await logoutInstance(accountId).catch(() => {});
+        // 2. Restart da sessão Baileys — quebra o estado 'open' travado na Evolution
+        await restartInstance(accountId).catch(() => {});
+        // 3. Pequena pausa para a Evolution processar o restart
+        await sleep(1_500);
+        // 4. Gera novo QR
         await doReconnectAndSaveQr(accountId);
         return res.json({ message: 'Reconexão forçada — aguardando QR Code.', ghostFixed: true });
       } catch (err) {
