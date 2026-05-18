@@ -167,7 +167,7 @@ export async function startOutboundWorkers() {
           `HTTP: ${httpStatus} | corpo: ${JSON.stringify(errBody)?.slice(0, 200)}`
         );
         ack();
-        await reportStatus(id, isInvalidNumber ? 'invalido' : 'erro', phone);
+        await reportStatus(id, 'invalido', phone);
       } else {
         console.error(
           `[WORKER] Falha transitória para +${phone} via "${accountId}". ` +
