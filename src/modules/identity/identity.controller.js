@@ -16,6 +16,8 @@ async function doReconnectAndSaveQr(accountId) {
   if (b64) {
     await saveConnectData(accountId, { base64: b64, pairingCode });
     console.log(`[DEBUG] QR salvo do response direto de reconnect — "${accountId}"`);
+  } else {
+    console.log(`[DEBUG] Sem QR no response HTTP de reconnect — "${accountId}" | ${JSON.stringify(data)?.slice(0, 200)}`);
   }
   return data;
 }
@@ -46,17 +48,26 @@ export async function startInstance(req, res) {
       // Redis foi explicitamente marcado offline (Connection Closed ou delete anterior)
       // mas Evolution ainda reporta 'open' — é uma conexão fantasma.
       // Forçamos logout + reconexão para gerar novo QR.
-      console.warn(`[DEBUG] "${accountId}" — ghost connection detectada (Evolution=open, Redis=close). Forçando reconexão...`);
+      console.warn(`[DEBUG] "${accountId}" — ghost connection detectada (Evolution=open, Redis=close). Recriando instância...`);
       try {
-        // 1. Tenta logout (pode falhar se o socket já caiu — ignoramos)
-        await logoutInstance(accountId).catch(() => {});
-        // 2. Restart da sessão Baileys — quebra o estado 'open' travado na Evolution
-        await restartInstance(accountId).catch(() => {});
-        // 3. Pequena pausa para a Evolution processar o restart
-        await sleep(1_500);
-        // 4. Gera novo QR
+        // 1. Logout — força state open → close antes do delete
+        await logoutInstance(accountId).catch((e) =>
+          console.warn(`[DEBUG] ghost logout "${accountId}" ignorado: ${e.response?.data?.message ?? e.message}`)
+        );
+        await sleep(2_000);
+        // 2. Delete — remove a instância travada
+        await deleteInstance(accountId).catch((e) =>
+          console.warn(`[DEBUG] ghost delete "${accountId}" ignorado: ${e.response?.data?.message ?? e.message}`)
+        );
+        await sleep(1_000);
+        // 3. Recria do zero com proxy
+        const proxyConfig = await resolveProxy(accountId);
+        await createInstance(accountId, proxyConfig).catch((e) =>
+          console.warn(`[DEBUG] ghost create "${accountId}" ignorado: ${e.response?.data?.message ?? e.message}`)
+        );
+        // 4. Gera QR via connect
         await doReconnectAndSaveQr(accountId);
-        return res.json({ message: 'Reconexão forçada — aguardando QR Code.', ghostFixed: true });
+        return res.json({ message: 'Ghost corrigido — instância recriada, aguardando QR Code.', ghostFixed: true });
       } catch (err) {
         const detail = err.response?.data ?? err.message;
         console.error(`[DEBUG] Falha ao corrigir ghost de "${accountId}":`, detail);
