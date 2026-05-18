@@ -70,8 +70,12 @@ export async function restartInstance(accountId) {
 }
 
 // Remove a instância permanentemente da Evolution API
-export async function deleteInstance(accountId) {
-  const { data } = await client.delete(`/instance/delete/${accountId}`);
+// force=true adiciona ?ignoreWhatsapp=true para forçar delete mesmo quando open
+export async function deleteInstance(accountId, force = false) {
+  const url = force
+    ? `/instance/delete/${accountId}?ignoreWhatsapp=true`
+    : `/instance/delete/${accountId}`;
+  const { data } = await client.delete(url);
   return data;
 }
 

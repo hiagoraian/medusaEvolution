@@ -50,22 +50,27 @@ export async function startInstance(req, res) {
       // Forçamos logout + reconexão para gerar novo QR.
       console.warn(`[DEBUG] "${accountId}" — ghost connection detectada (Evolution=open, Redis=close). Recriando instância...`);
       try {
-        // 1. Logout — força state open → close antes do delete
+        // 1. Restart — quebra o websocket travado antes de qualquer outra operação
+        await restartInstance(accountId).catch((e) =>
+          console.warn(`[DEBUG] ghost restart "${accountId}" ignorado: ${e.response?.data?.message ?? e.message}`)
+        );
+        await sleep(3_000);
+        // 2. Logout — força state open → close
         await logoutInstance(accountId).catch((e) =>
           console.warn(`[DEBUG] ghost logout "${accountId}" ignorado: ${e.response?.data?.message ?? e.message}`)
         );
-        await sleep(2_000);
-        // 2. Delete — remove a instância travada
-        await deleteInstance(accountId).catch((e) =>
+        await sleep(1_000);
+        // 3. Force delete — ?ignoreWhatsapp=true bypassa a restrição de estado open
+        await deleteInstance(accountId, true).catch((e) =>
           console.warn(`[DEBUG] ghost delete "${accountId}" ignorado: ${e.response?.data?.message ?? e.message}`)
         );
         await sleep(1_000);
-        // 3. Recria do zero com proxy
+        // 4. Recria do zero com proxy
         const proxyConfig = await resolveProxy(accountId);
         await createInstance(accountId, proxyConfig).catch((e) =>
           console.warn(`[DEBUG] ghost create "${accountId}" ignorado: ${e.response?.data?.message ?? e.message}`)
         );
-        // 4. Gera QR via connect
+        // 5. Gera QR via connect
         await doReconnectAndSaveQr(accountId);
         return res.json({ message: 'Ghost corrigido — instância recriada, aguardando QR Code.', ghostFixed: true });
       } catch (err) {
