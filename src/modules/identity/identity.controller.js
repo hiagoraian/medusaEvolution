@@ -6,6 +6,8 @@ import {
 import { resolveProxy } from './proxy.service.js';
 import { ZTE_CONFIG } from '../network/network.config.js';
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 // Chama reconnect e salva o QR do response HTTP direto (fallback caso webhook não chegue)
 async function doReconnectAndSaveQr(accountId) {
   const data = await reconnectInstance(accountId);
