@@ -50,6 +50,18 @@ export async function sendWhatsAppAudio(instanceName, number, audioBase64) {
   return data;
 }
 
+// Busca base64 de uma mídia recebida via webhook (quando base64:false no webhook config)
+export async function fetchMediaBase64(instanceName, messageKey, messageObj) {
+  try {
+    const { data } = await client.post(`/chat/getBase64FromMediaMessage/${instanceName}`, {
+      message: { key: messageKey, message: messageObj },
+    });
+    return data?.base64 ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // ── Grupos ────────────────────────────────────────────────────────────────────
 
 export async function fetchGroups(instanceName) {

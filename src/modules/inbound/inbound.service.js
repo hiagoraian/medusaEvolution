@@ -3,6 +3,7 @@ import {
   sendText,
   sendMedia,
   sendWhatsAppAudio,
+  fetchMediaBase64,
 } from '../outbound/evolution.outbound.client.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -34,8 +35,8 @@ export async function forwardToAdminGroup(incomingMsg) {
 
   if (!groupJid) throw new Error('ADMIN_GROUP_JID não configurado no .env.');
 
-  const { instance, pushName, messageType, message = {} } = incomingMsg;
-  const phone = incomingMsg.key?.remoteJid?.split('@')[0] ?? incomingMsg.phone ?? '?';
+  const { instance, pushName, messageType, message = {}, key: msgKey = {} } = incomingMsg;
+  const phone = msgKey?.remoteJid?.split('@')[0] ?? incomingMsg.phone ?? '?';
 
   const header = buildHeader(phone, pushName, instance);
 
@@ -74,8 +75,10 @@ export async function forwardToAdminGroup(incomingMsg) {
 
     // ── Imagem ───────────────────────────────────────────────────────────────
     case 'imageMessage': {
-      const base64  = message.imageMessage?.base64 ?? extractBase64(message);
       const caption = header + (message.imageMessage?.caption ?? '');
+      const base64  = message.imageMessage?.base64
+        ?? extractBase64(message)
+        ?? await fetchMediaBase64(instance, msgKey, message);
 
       if (base64) {
         await sendMedia(adminZap, groupJid, base64, 'image', caption);
@@ -87,8 +90,10 @@ export async function forwardToAdminGroup(incomingMsg) {
 
     // ── Vídeo ────────────────────────────────────────────────────────────────
     case 'videoMessage': {
-      const base64  = message.videoMessage?.base64 ?? extractBase64(message);
       const caption = header + (message.videoMessage?.caption ?? '');
+      const base64  = message.videoMessage?.base64
+        ?? extractBase64(message)
+        ?? await fetchMediaBase64(instance, msgKey, message);
 
       if (base64) {
         await sendMedia(adminZap, groupJid, base64, 'video', caption);
