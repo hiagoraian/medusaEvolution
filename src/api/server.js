@@ -19,7 +19,8 @@ import inboundRoutes          from '../modules/inbound/inbound.routes.js';
 import { startWarmupWorker }  from '../modules/warmup/warmup.worker.js';
 import { startWarmupCron }    from '../modules/warmup/warmup.cron.js';
 import warmupRoutes           from '../modules/warmup/warmup.routes.js';
-import { createWarmupSchema } from '../modules/warmup/warmup.repository.js';
+import { createWarmupSchema }    from '../modules/warmup/warmup.repository.js';
+import { createZapStatsSchema }  from '../modules/reports/zap-stats.repository.js';
 import reportsRoutes          from '../modules/reports/reports.routes.js';
 import mediaRoutes            from '../modules/media/media.routes.js';
 
@@ -76,6 +77,7 @@ async function bootstrap() {
   await initSchema();
   await createPipelineSchema();
   await createWarmupSchema();
+  await createZapStatsSchema();
   await withRetry(connectRabbitMQ, 'RabbitMQ', 12, 5_000);
 
   // Workers iniciam após o canal RabbitMQ estar pronto

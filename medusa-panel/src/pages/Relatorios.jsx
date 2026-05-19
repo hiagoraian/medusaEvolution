@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import {
   PieChart, Download, CheckCircle, AlertTriangle,
-  Clock, RefreshCw, FileText, AlertCircle,
+  Clock, RefreshCw, FileText, AlertCircle, Cpu, Trash2,
 } from 'lucide-react';
-import { getCampaignsHistory } from '../services/api.js';
+import { getCampaignsHistory, getZapStats, resetZapStats } from '../services/api.js';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
 
@@ -77,6 +77,65 @@ function DownloadBtn({ href, icon: Icon, label, color }) {
       <Icon size={12} />
       {label}
     </a>
+  );
+}
+
+// ── Gestão de Chip ────────────────────────────────────────────────────────────
+
+function GestaoChip() {
+  const [stats,     setStats]     = useState([]);
+  const [resetting, setResetting] = useState(null);
+
+  async function fetchStats() {
+    try {
+      const { data } = await getZapStats();
+      setStats(data);
+    } catch { /* silencioso */ }
+  }
+
+  async function handleReset(accountId) {
+    if (!confirm(`Limpar contador de ${accountId}?`)) return;
+    setResetting(accountId);
+    try {
+      await resetZapStats(accountId);
+      await fetchStats();
+    } finally {
+      setResetting(null);
+    }
+  }
+
+  useEffect(() => { fetchStats(); }, []);
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100">
+        <Cpu size={16} className="text-indigo-500" />
+        <h2 className="text-sm font-semibold text-gray-700">Gestão de Chip</h2>
+        <button onClick={fetchStats} className="ml-auto text-gray-400 hover:text-gray-600 transition">
+          <RefreshCw size={14} />
+        </button>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-px bg-gray-100">
+        {stats.map((z) => (
+          <div key={z.accountId} className="bg-white px-4 py-3 flex flex-col gap-1">
+            <span className="text-xs font-semibold text-gray-500">{z.accountId}</span>
+            <span className="text-lg font-bold text-gray-800">
+              {z.totalSent.toLocaleString('pt-BR')}
+            </span>
+            <span className="text-xs text-gray-400">disparos</span>
+            <button
+              onClick={() => handleReset(z.accountId)}
+              disabled={resetting === z.accountId}
+              className="mt-1 flex items-center gap-1 text-xs text-red-400 hover:text-red-600 disabled:opacity-40 transition"
+              title="Limpar contador (chip banido/trocado)"
+            >
+              <Trash2 size={11} />
+              Limpar
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -275,6 +334,10 @@ export default function Relatorios() {
           </div>
         )}
       </div>
+
+      {/* Gestão de Chip */}
+      <GestaoChip />
+
     </div>
   );
 }

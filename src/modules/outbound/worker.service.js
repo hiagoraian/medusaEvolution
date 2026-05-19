@@ -2,6 +2,7 @@ import { consumeQueue }                        from '../../core/rabbitmq.js';
 import { isInstanceOnline, setInstanceOffline } from '../identity/cache.service.js';
 import { sendText, sendMedia }                  from './evolution.outbound.client.js';
 import { updateMessageStatus }     from '../pipeline/pipeline.repository.js';
+import { incrementZapSent }        from '../reports/zap-stats.repository.js';
 import fs                          from 'fs';
 
 const OFFLINE_REQUEUE_DELAY_MS = 10_000;
@@ -127,6 +128,7 @@ export async function startOutboundWorkers() {
 
       ack();
       await reportStatus(id, 'enviado', phone);
+      incrementZapSent(accountId).catch(() => {});
 
     } catch (err) {
       // ── Passo 4: Classificação da falha ──────────────────────────────────

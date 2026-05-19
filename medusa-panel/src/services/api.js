@@ -83,6 +83,14 @@ export function getCampaignsHistory() {
   return api.get('/reports/history');
 }
 
+export function getZapStats() {
+  return api.get('/reports/zap-stats');
+}
+
+export function resetZapStats(accountId) {
+  return api.post(`/reports/zap-stats/${encodeURIComponent(accountId)}/reset`);
+}
+
 // ── Pipeline / Listas ─────────────────────────────────────────────────────────
 
 export function uploadList(campaignId, file) {
