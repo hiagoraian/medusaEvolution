@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { getCampaignsHistory } from '../services/api.js';
 
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -59,7 +59,7 @@ function ProgressBar({ campaign }) {
         <div className="bg-amber-300 transition-all"   style={{ width: `${pPendentes}%` }} />
       </div>
       <p className="text-xs text-gray-400 mt-1">
-        {pEnviados.toFixed(0)}% enviado
+        {pEnviados.toFixed(0)}% concluído
       </p>
     </div>
   );
