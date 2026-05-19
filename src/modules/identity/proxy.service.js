@@ -34,11 +34,14 @@ export function isProxyAlive(proxyUrl, timeoutMs = 2_500) {
 export function buildProxyConfig(proxyUrl) {
   try {
     const url = new URL(proxyUrl);
-    return {
+    const config = {
       host:     url.hostname,
       port:     url.port,
       protocol: url.protocol.replace(':', ''),
     };
+    if (url.username) config.username = decodeURIComponent(url.username);
+    if (url.password) config.password = decodeURIComponent(url.password);
+    return config;
   } catch {
     return null;
   }
