@@ -105,33 +105,33 @@ export async function forwardToAdminGroup(incomingMsg) {
 
     // ── Áudio PTT (push-to-talk) ──────────────────────────────────────────
     case 'audioMessage': {
-      const base64 = message.audioMessage?.base64 ?? extractBase64(message);
+      const base64 = message.audioMessage?.base64
+        ?? extractBase64(message)
+        ?? await fetchMediaBase64(instance, msgKey, message);
 
       await sendText(adminZap, groupJid, header + '[🎤 Áudio recebido]');
-
-      if (base64) {
-        await sendWhatsAppAudio(adminZap, groupJid, base64);
-      }
+      if (base64) await sendWhatsAppAudio(adminZap, groupJid, base64);
       break;
     }
 
     // ── Sticker ───────────────────────────────────────────────────────────
     case 'stickerMessage': {
-      const base64 = message.stickerMessage?.base64 ?? extractBase64(message);
+      const base64 = message.stickerMessage?.base64
+        ?? extractBase64(message)
+        ?? await fetchMediaBase64(instance, msgKey, message);
 
       await sendText(adminZap, groupJid, header + '[🖼️ Sticker recebido]');
-
-      if (base64) {
-        await sendMedia(adminZap, groupJid, base64, 'sticker', '');
-      }
+      if (base64) await sendMedia(adminZap, groupJid, base64, 'sticker', '');
       break;
     }
 
     // ── Documento ─────────────────────────────────────────────────────────
     case 'documentMessage': {
-      const base64    = message.documentMessage?.base64 ?? extractBase64(message);
-      const fileName  = message.documentMessage?.fileName ?? 'documento';
-      const caption   = header + `[📄 Documento: ${fileName}]`;
+      const fileName = message.documentMessage?.fileName ?? 'documento';
+      const caption  = header + `[📄 Documento: ${fileName}]`;
+      const base64   = message.documentMessage?.base64
+        ?? extractBase64(message)
+        ?? await fetchMediaBase64(instance, msgKey, message);
 
       if (base64) {
         await sendMedia(adminZap, groupJid, base64, 'document', caption);
