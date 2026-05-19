@@ -101,7 +101,10 @@ export async function handleEvolutionWebhook(req, res) {
           if (remoteJid.endsWith('@g.us'))            continue;
           if (remoteJid.endsWith('@broadcast'))       continue;
           if (remoteJid.endsWith('@newsletter'))      continue;
-          if (!remoteJid.endsWith('@s.whatsapp.net')) continue;
+          if (!remoteJid.endsWith('@s.whatsapp.net')) {
+            console.log(`[WEBHOOK] Ignorado — JID fora do padrão: ${remoteJid}`);
+            continue;
+          }
 
           const message     = msg.message ?? {};
           const messageType = Object.keys(message)[0] ?? 'unknown';
@@ -114,7 +117,10 @@ export async function handleEvolutionWebhook(req, res) {
               messageType === 'templateMessage'              ||
               messageType === 'ephemeralMessage'             ||
               messageType === 'buttonsMessage'               ||
-              messageType === 'listMessage') continue;
+              messageType === 'listMessage') {
+            console.log(`[WEBHOOK] Tipo interno ignorado — ${messageType} de ${remoteJid}`);
+            continue;
+          }
 
           // Payload completo — inbound.service extrai o que precisar
           publishMessage(QUEUES.INBOUND, {
