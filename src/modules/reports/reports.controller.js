@@ -1,4 +1,4 @@
-import { getDashboardStats, getCampaignsHistory, exportContacts } from './reports.repository.js';
+import { getDashboardStats, getCampaignsHistory, exportContacts, clearAllData } from './reports.repository.js';
 import { getAllZapStats, resetZapStats } from './zap-stats.repository.js';
 import { ZTE_CONFIG } from '../network/network.config.js';
 
@@ -62,6 +62,18 @@ export async function zapStatsHandler(_req, res) {
   } catch (err) {
     console.error('[REPORTS] Erro ao buscar zap-stats:', err.message);
     return res.status(500).json({ error: 'Falha ao buscar estatísticas dos ZAPs.' });
+  }
+}
+
+// DELETE /api/reports/clear-all
+export async function clearAllHandler(_req, res) {
+  try {
+    await clearAllData();
+    console.log('[REPORTS] Todos os dados de campanhas foram apagados.');
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[REPORTS] Erro ao limpar dados:', err.message);
+    return res.status(500).json({ error: 'Falha ao limpar dados.' });
   }
 }
 

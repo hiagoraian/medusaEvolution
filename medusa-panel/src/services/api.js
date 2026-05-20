@@ -87,6 +87,10 @@ export function getCampaignsHistory() {
   return api.get('/reports/history');
 }
 
+export function clearAllReports() {
+  return api.delete('/reports/clear-all');
+}
+
 export function getZapStats() {
   return api.get('/reports/zap-stats');
 }

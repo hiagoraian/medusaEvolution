@@ -3,7 +3,7 @@ import {
   PieChart, Download, CheckCircle, AlertTriangle,
   Clock, RefreshCw, FileText, AlertCircle, Cpu, Trash2, RotateCcw,
 } from 'lucide-react';
-import { getCampaignsHistory, getZapStats, resetZapStats, resetList } from '../services/api.js';
+import { getCampaignsHistory, getZapStats, resetZapStats, resetList, clearAllReports } from '../services/api.js';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
 
@@ -146,6 +146,21 @@ export default function Relatorios() {
   const [loading,    setLoading]    = useState(false);
   const [error,      setError]      = useState(null);
   const [resetting,  setResetting]  = useState(null);
+  const [clearing,   setClearing]   = useState(false);
+
+  async function handleClearAll() {
+    if (!confirm('Apagar TODOS os relatórios e dados de campanhas? Essa ação não pode ser desfeita.')) return;
+    if (!confirm('Tem certeza? Todos os históricos serão perdidos permanentemente.')) return;
+    setClearing(true);
+    try {
+      await clearAllReports();
+      setCampaigns([]);
+    } catch {
+      alert('Erro ao limpar dados.');
+    } finally {
+      setClearing(false);
+    }
+  }
 
   async function handleReset(campaignId) {
     if (!confirm(`Resetar "${campaignId}"? Todos os pendentes voltam para importado.`)) return;
@@ -184,16 +199,28 @@ export default function Relatorios() {
           <h1 className="text-2xl font-bold text-gray-800">Relatórios</h1>
           <p className="text-sm text-gray-500 mt-1">Histórico e exportação de dados das campanhas.</p>
         </div>
-        <button
-          onClick={fetchHistory}
-          disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-300
-                     text-sm font-medium text-gray-600 hover:bg-gray-50
-                     disabled:opacity-50 transition"
-        >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          Atualizar
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={fetchHistory}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-300
+                       text-sm font-medium text-gray-600 hover:bg-gray-50
+                       disabled:opacity-50 transition"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            Atualizar
+          </button>
+          <button
+            onClick={handleClearAll}
+            disabled={clearing}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-red-200
+                       text-sm font-medium text-red-500 hover:bg-red-50
+                       disabled:opacity-50 transition"
+          >
+            <Trash2 size={14} />
+            {clearing ? 'Limpando...' : 'Limpar Dados'}
+          </button>
+        </div>
       </div>
 
       {/* Erro de conexão */}

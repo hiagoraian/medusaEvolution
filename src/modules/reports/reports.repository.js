@@ -47,6 +47,13 @@ export async function exportContacts(campaignId, status) {
   return rows.map((r) => r.phone);
 }
 
+// ── Limpar todos os dados ─────────────────────────────────────────────────────
+
+export async function clearAllData() {
+  await query(`DELETE FROM messages_queue`);
+  await query(`DELETE FROM campaigns`);
+}
+
 // ── Dashboard ao vivo ─────────────────────────────────────────────────────────
 
 // Uma única query com FILTER para evitar múltiplas round-trips ao banco.
