@@ -572,13 +572,16 @@ export default function Disparo() {
     }
   }
 
-  // ── Parar ─────────────────────────────────────────────────────────────────
+  // ── Cancelar (para o loop + purga a fila para não enviar mensagens residuais)
   async function handleStop() {
     setIsStopping(true);
     setFeedback(null);
     try {
-      const { data } = await stopCampaign();
-      setFeedback({ type: 'success', message: data.message ?? 'Parada solicitada.' });
+      const { data } = await purgeQueue(); // purgeHandler já chama stopCampaign internamente
+      setFeedback({
+        type:    'success',
+        message: `Campanha cancelada — ${data.purged} mensagem(s) removida(s) da fila.`,
+      });
       await fetchStatus();
     } catch (err) {
       setFeedback({ type: 'error', message: err.response?.data?.error ?? err.message });
