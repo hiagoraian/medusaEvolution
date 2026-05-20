@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { TrendingUp, Clock, AlertTriangle, Flame, Activity } from 'lucide-react';
-import { getDashboardStats } from '../services/api.js';
+import { getDashboardStats, getCampaignStatus } from '../services/api.js';
 
 // ── Configuração dos cards ────────────────────────────────────────────────────
 
@@ -110,8 +110,15 @@ export default function Dashboard() {
   useEffect(() => {
     async function fetchStats() {
       try {
-        const { data } = await getDashboardStats();
-        setStats(data);
+        const [{ data: dbStats }, { data: orchStatus }] = await Promise.all([
+          getDashboardStats(),
+          getCampaignStatus(),
+        ]);
+        setStats({
+          ...dbStats,
+          // Só mostra campanha ativa se o orquestrador confirmar que está rodando
+          campanhaAtiva: orchStatus.running ? dbStats.campanhaAtiva : null,
+        });
         setLastUpdate(new Date());
         setOffline(false);
       } catch {
