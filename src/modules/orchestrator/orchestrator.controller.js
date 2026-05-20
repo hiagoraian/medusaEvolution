@@ -1,4 +1,5 @@
 import { startCampaign, stopCampaign, getCampaignState } from './orchestrator.service.js';
+import { purgeQueue, QUEUES } from '../../core/rabbitmq.js';
 
 // POST /api/orchestrator/start
 export async function startHandler(req, res) {
@@ -60,4 +61,18 @@ export function stopHandler(_req, res) {
 // GET /api/orchestrator/status
 export function statusHandler(_req, res) {
   return res.json(getCampaignState());
+}
+
+// POST /api/orchestrator/purge
+export async function purgeHandler(_req, res) {
+  try {
+    stopCampaign();
+  } catch { /* ignora se não havia campanha */ }
+  try {
+    const count = await purgeQueue(QUEUES.OUTBOUND);
+    console.log(`[ORCHESTRATOR] Fila limpa — ${count} mensagem(s) descartada(s).`);
+    return res.json({ ok: true, purged: count });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
 }

@@ -47,6 +47,10 @@ export function stopCampaign() {
   return api.post('/orchestrator/stop');
 }
 
+export function purgeQueue() {
+  return api.post('/orchestrator/purge');
+}
+
 export function getCampaignStatus() {
   return api.get('/orchestrator/status');
 }

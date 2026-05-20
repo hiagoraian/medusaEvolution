@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Send, ShieldAlert, MessageSquare, Eye, Smartphone,
   Square, RefreshCw, CheckCircle, AlertCircle, Loader2, X, Zap,
-  Image as ImageIcon, Film, Upload, Calendar,
+  Image as ImageIcon, Film, Upload, Calendar, Trash2,
 } from 'lucide-react';
 import {
-  startCampaign, stopCampaign, getCampaignStatus, sendTestMessage,
+  startCampaign, stopCampaign, purgeQueue, getCampaignStatus, sendTestMessage,
   getLists, getConnectedInstances, uploadMedia,
 } from '../services/api.js';
 
@@ -313,6 +313,7 @@ export default function Disparo() {
   const [instances,       setInstances]       = useState({});
   const [isStarting,      setIsStarting]      = useState(false);
   const [isStopping,      setIsStopping]      = useState(false);
+  const [isPurging,       setIsPurging]       = useState(false);
   const [feedback,        setFeedback]        = useState(null);
   const [campaignState,   setCampaignState]   = useState(null);
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
@@ -444,6 +445,22 @@ export default function Disparo() {
       setFeedback({ type: 'error', message: err.response?.data?.error ?? err.message });
     } finally {
       setIsStarting(false);
+    }
+  }
+
+  // ── Limpar fila (emergência) ──────────────────────────────────────────────
+  async function handlePurge() {
+    if (!confirm('Limpar fila? Todas as mensagens pendentes serão descartadas.')) return;
+    setIsPurging(true);
+    setFeedback(null);
+    try {
+      const { data } = await purgeQueue();
+      setFeedback({ type: 'success', message: `Fila limpa — ${data.purged} mensagem(s) descartada(s).` });
+      await fetchStatus();
+    } catch (err) {
+      setFeedback({ type: 'error', message: err.response?.data?.error ?? err.message });
+    } finally {
+      setIsPurging(false);
     }
   }
 
@@ -812,6 +829,20 @@ export default function Disparo() {
                        px-6 py-3 rounded-xl shadow-sm transition-colors duration-150"
           >
             <Smartphone size={16} /> Envio Teste
+          </button>
+
+          <button
+            onClick={handlePurge}
+            disabled={isPurging}
+            className="flex items-center gap-2 bg-white hover:bg-red-50 active:bg-red-100
+                       border border-red-200 text-red-500 font-semibold text-sm
+                       px-6 py-3 rounded-xl shadow-sm transition-colors duration-150
+                       disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {isPurging
+              ? <><Loader2 size={15} className="animate-spin" /> Limpando...</>
+              : <><Trash2 size={15} /> Limpar Fila</>
+            }
           </button>
 
           <button

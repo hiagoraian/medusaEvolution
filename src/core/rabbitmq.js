@@ -119,3 +119,9 @@ export function getChannel() {
   if (!_channel) throw new Error('[RABBITMQ] Canal não disponível.');
   return _channel;
 }
+
+export async function purgeQueue(queue) {
+  if (!_channel) throw new Error('[RABBITMQ] Canal não inicializado.');
+  const result = await _channel.purgeQueue(queue);
+  return result.messageCount;
+}
