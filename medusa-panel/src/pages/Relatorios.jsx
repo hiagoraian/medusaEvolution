@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import {
   PieChart, Download, CheckCircle, AlertTriangle,
-  Clock, RefreshCw, FileText, AlertCircle, Cpu, Trash2,
+  Clock, RefreshCw, FileText, AlertCircle, Cpu, Trash2, RotateCcw,
 } from 'lucide-react';
-import { getCampaignsHistory, getZapStats, resetZapStats } from '../services/api.js';
+import { getCampaignsHistory, getZapStats, resetZapStats, resetList } from '../services/api.js';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
 
@@ -145,6 +145,20 @@ export default function Relatorios() {
   const [campaigns,  setCampaigns]  = useState([]);
   const [loading,    setLoading]    = useState(false);
   const [error,      setError]      = useState(null);
+  const [resetting,  setResetting]  = useState(null);
+
+  async function handleReset(campaignId) {
+    if (!confirm(`Resetar "${campaignId}"? Todos os pendentes voltam para importado.`)) return;
+    setResetting(campaignId);
+    try {
+      await resetList(campaignId);
+      await fetchHistory();
+    } catch {
+      alert('Erro ao resetar campanha.');
+    } finally {
+      setResetting(null);
+    }
+  }
 
   async function fetchHistory() {
     setLoading(true);
@@ -322,7 +336,17 @@ export default function Relatorios() {
                             color="gray"
                           />
                         )}
-                        {c.totalFalhas === 0 && c.totalInvalidos === 0 && (
+                        {c.totalPendentes > 0 && (
+                          <button
+                            onClick={() => handleReset(c.id)}
+                            disabled={resetting === c.id}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors duration-150 border border-amber-200 text-amber-600 hover:bg-amber-50 disabled:opacity-40"
+                          >
+                            <RotateCcw size={12} className={resetting === c.id ? 'animate-spin' : ''} />
+                            Resetar
+                          </button>
+                        )}
+                        {c.totalFalhas === 0 && c.totalInvalidos === 0 && c.totalPendentes === 0 && (
                           <span className="text-xs text-gray-400">—</span>
                         )}
                       </div>
