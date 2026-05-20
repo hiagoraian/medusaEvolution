@@ -1,4 +1,4 @@
-import { consumeQueue }                        from '../../core/rabbitmq.js';
+import { consumeQueue, publishMessage, QUEUES } from '../../core/rabbitmq.js';
 import { isInstanceOnline, setInstanceOffline } from '../identity/cache.service.js';
 import { sendText, sendMedia }                  from './evolution.outbound.client.js';
 import { updateMessageStatus }     from '../pipeline/pipeline.repository.js';
@@ -6,6 +6,7 @@ import { incrementZapSent }        from '../reports/zap-stats.repository.js';
 import fs                          from 'fs';
 
 const OFFLINE_REQUEUE_DELAY_MS = 10_000;
+const OFFLINE_MAX_RETRIES      = 6; // ~1 min — após isso abandona e deixa como pendente no DB
 const MIN_SAFE_DELAY_MS        = 15_000;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -65,12 +66,24 @@ export async function startOutboundWorkers() {
     // ── Passo 1: Checagem de instância (Redis, zero I/O na Evolution) ────────
     const online = await isInstanceOnline(accountId);
     if (!online) {
+      const retries = (task._offlineRetries ?? 0) + 1;
+
+      if (retries >= OFFLINE_MAX_RETRIES) {
+        console.warn(
+          `[WORKER] "${accountId}" offline por ${retries} tentativas — abandonando msg +${phone}. ` +
+          `Permanece como pendente no DB.`
+        );
+        ack();
+        return;
+      }
+
       console.warn(
         `[WORKER] Devolvendo msg para "${phone}" — "${accountId}" offline. ` +
-        `Requeue em ${OFFLINE_REQUEUE_DELAY_MS / 1000}s.`
+        `Requeue em ${OFFLINE_REQUEUE_DELAY_MS / 1000}s (${retries}/${OFFLINE_MAX_RETRIES}).`
       );
       await sleep(OFFLINE_REQUEUE_DELAY_MS);
-      nack(true);
+      ack();
+      publishMessage(QUEUES.OUTBOUND, { ...task, _offlineRetries: retries });
       return;
     }
 
