@@ -814,21 +814,22 @@ export default function Disparo() {
             <Smartphone size={16} /> Envio Teste
           </button>
 
-          {isRunning && (
-            <button
-              onClick={handleStop}
-              disabled={!canStop || isStopping}
-              className="flex items-center gap-2 bg-red-500 hover:bg-red-600 active:bg-red-700
-                         disabled:bg-gray-200 disabled:cursor-not-allowed
-                         text-white disabled:text-gray-400 font-semibold text-sm
-                         px-6 py-3 rounded-xl shadow-md transition-colors duration-150"
-            >
-              {isStopping
-                ? <><Loader2 size={15} className="animate-spin" /> Parando...</>
-                : <><Square size={13} className="fill-white" /> Cancelar Campanha</>
-              }
-            </button>
-          )}
+          <button
+            onClick={handleStop}
+            disabled={isStopping || (!isRunning && !campaignState)}
+            className={`flex items-center gap-2 font-semibold text-sm
+                       px-6 py-3 rounded-xl shadow-md transition-colors duration-150
+                       ${isRunning
+                         ? 'bg-red-500 hover:bg-red-600 active:bg-red-700 text-white'
+                         : 'bg-gray-200 hover:bg-gray-300 text-gray-600'
+                       }
+                       disabled:opacity-40 disabled:cursor-not-allowed`}
+          >
+            {isStopping
+              ? <><Loader2 size={15} className="animate-spin" /> Parando...</>
+              : <><Square size={13} className={isRunning ? 'fill-white' : 'fill-gray-600'} /> {isRunning ? 'Cancelar Campanha' : 'Forçar Parada'}</>
+            }
+          </button>
         </div>
 
         {/* Feedback global */}
