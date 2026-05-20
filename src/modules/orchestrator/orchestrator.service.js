@@ -4,6 +4,7 @@ import { rotateIp }                               from '../network/network.servi
 import { ZTE_CONFIG, getAllZteIds }               from '../network/network.config.js';
 import { isInstanceOnline }                       from '../identity/cache.service.js';
 import { sendCycleReport }                        from '../reports/cycle.reporter.js';
+import { setCache, delCache, getCache }           from '../../core/redis.js';
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 
@@ -15,6 +16,8 @@ const STOP_POLL_INTERVAL  = 10_000;     // granularidade do sleep interrompível
 const MIN_DELAY_MS        = 15_000;     // freio de mão: nunca < 15 s entre envios
 
 // ── Estado global (singleton por processo) ────────────────────────────────────
+
+const REDIS_KEY = 'orchestrator:active_campaign';
 
 let isCampaignRunning = false;
 let stopRequested     = false;
@@ -253,6 +256,9 @@ export async function startCampaign(campaignId, texts, options = {}) {
     startedAt: new Date().toISOString(),
   };
 
+  // Persiste no Redis para recuperação após crash/restart
+  await setCache(REDIS_KEY, _activeCampaign);
+
   console.log(
     `[ORCHESTRATOR] Iniciando campanha "${campaignId}" | ` +
     `${texts.length} texto(s) | ` +
@@ -266,6 +272,7 @@ export async function startCampaign(campaignId, texts, options = {}) {
     .finally(() => {
       isCampaignRunning = false;
       _activeCampaign   = null;
+      delCache(REDIS_KEY).catch(() => {});
     });
 
   return {
@@ -296,4 +303,13 @@ export function getCampaignState() {
     campaign:      _activeCampaign,
     stopRequested,
   };
+}
+
+export async function getRecoveryState() {
+  if (isCampaignRunning) return null;
+  return getCache(REDIS_KEY);
+}
+
+export async function clearRecoveryState() {
+  return delCache(REDIS_KEY);
 }

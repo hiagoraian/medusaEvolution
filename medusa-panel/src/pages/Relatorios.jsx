@@ -364,14 +364,22 @@ export default function Relatorios() {
                           />
                         )}
                         {c.totalPendentes > 0 && (
-                          <button
-                            onClick={() => handleReset(c.id)}
-                            disabled={resetting === c.id}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors duration-150 border border-amber-200 text-amber-600 hover:bg-amber-50 disabled:opacity-40"
-                          >
-                            <RotateCcw size={12} className={resetting === c.id ? 'animate-spin' : ''} />
-                            Resetar
-                          </button>
+                          <>
+                            <DownloadBtn
+                              href={exportUrl(c.id, 'nao_enviado')}
+                              icon={Download}
+                              label="Pendentes (.txt)"
+                              color="gray"
+                            />
+                            <button
+                              onClick={() => handleReset(c.id)}
+                              disabled={resetting === c.id}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors duration-150 border border-amber-200 text-amber-600 hover:bg-amber-50 disabled:opacity-40"
+                            >
+                              <RotateCcw size={12} className={resetting === c.id ? 'animate-spin' : ''} />
+                              Resetar
+                            </button>
+                          </>
                         )}
                         {c.totalFalhas === 0 && c.totalInvalidos === 0 && c.totalPendentes === 0 && (
                           <span className="text-xs text-gray-400">—</span>

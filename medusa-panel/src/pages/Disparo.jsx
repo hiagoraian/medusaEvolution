@@ -7,6 +7,7 @@ import {
 import {
   startCampaign, stopCampaign, purgeQueue, getCampaignStatus, sendTestMessage,
   getLists, getConnectedInstances, uploadMedia,
+  getCampaignRecovery, recoverCampaign, cancelCampaignRecovery,
 } from '../services/api.js';
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -302,6 +303,71 @@ function ModalTest({ texts, instances, mediaUpload, onClose }) {
   );
 }
 
+// ── Modal: Campanha Interrompida ──────────────────────────────────────────────
+
+function ModalRecovery({ campaign, isRecovering, isCancelling, onRecover, onCancel }) {
+  return (
+    <ModalBackdrop onClose={() => {}}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-amber-100 bg-amber-50 rounded-t-2xl">
+          <AlertCircle size={18} className="text-amber-500 flex-shrink-0" />
+          <h2 className="text-sm font-semibold text-amber-800">Campanha Interrompida</h2>
+        </div>
+
+        <div className="px-5 py-5 space-y-3">
+          <p className="text-sm text-gray-600">
+            O servidor foi reiniciado durante um disparo em andamento.
+          </p>
+          <div className="bg-gray-50 rounded-xl p-3 space-y-1.5">
+            <div className="flex justify-between gap-4">
+              <span className="text-xs text-gray-500">Campanha</span>
+              <span className="text-xs font-semibold text-gray-800 text-right truncate max-w-[160px]">
+                {campaign.campaignName || campaign.campaignId}
+              </span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-xs text-gray-500">Iniciada em</span>
+              <span className="text-xs text-gray-600">
+                {new Date(campaign.startedAt).toLocaleString('pt-BR', {
+                  day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+                })}
+              </span>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500">
+            Contatos pendentes foram preservados. Você pode retomar de onde parou ou cancelar.
+          </p>
+        </div>
+
+        <div className="flex gap-2 px-5 pb-5">
+          <button
+            onClick={onCancel}
+            disabled={isCancelling || isRecovering}
+            className="flex-1 py-2.5 rounded-xl border border-gray-300 text-sm
+                       text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition"
+          >
+            {isCancelling ? <><Loader2 size={13} className="inline animate-spin mr-1" />Cancelando...</> : 'Cancelar'}
+          </button>
+          <button
+            onClick={onRecover}
+            disabled={isRecovering || isCancelling}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl
+                       bg-emerald-500 hover:bg-emerald-600
+                       disabled:bg-gray-200 disabled:cursor-not-allowed
+                       text-white disabled:text-gray-400 text-sm font-semibold transition"
+          >
+            {isRecovering
+              ? <><Loader2 size={13} className="animate-spin" /> Retomando...</>
+              : <><RefreshCw size={13} /> Retornar</>
+            }
+          </button>
+        </div>
+      </div>
+    </ModalBackdrop>
+  );
+}
+
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export default function Disparo() {
@@ -316,10 +382,13 @@ export default function Disparo() {
   const [isPurging,       setIsPurging]       = useState(false);
   const [feedback,        setFeedback]        = useState(null);
   const [campaignState,   setCampaignState]   = useState(null);
-  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
-  const [isTestModalOpen, setIsTestModalOpen] = useState(false);
-  const [enabledLists,    setEnabledLists]    = useState([]);
-  const [listsLoading,    setListsLoading]    = useState(false);
+  const [isPlanModalOpen, setIsPlanModalOpen]   = useState(false);
+  const [isTestModalOpen, setIsTestModalOpen]   = useState(false);
+  const [enabledLists,    setEnabledLists]      = useState([]);
+  const [listsLoading,    setListsLoading]      = useState(false);
+  const [recoveryState,   setRecoveryState]     = useState(null); // { interrupted, campaign }
+  const [isRecovering,    setIsRecovering]      = useState(false);
+  const [isCancellingRec, setIsCancellingRec]   = useState(false);
 
   // Mídia
   const [mediaUpload,  setMediaUpload]  = useState(null); // { filePath, fileName, mediaType, sizeKb }
@@ -368,6 +437,8 @@ export default function Disparo() {
     try {
       const { data } = await getCampaignStatus();
       setCampaignState(data);
+      // Se campanha voltou a rodar, limpa o modal de recovery
+      if (data.running) setRecoveryState(null);
     } catch { /* backend offline */ }
   }, []);
 
@@ -376,6 +447,43 @@ export default function Disparo() {
     const id = setInterval(fetchStatus, 5_000);
     return () => clearInterval(id);
   }, [fetchStatus]);
+
+  // ── Verificação de campanha interrompida (única vez no mount) ─────────────
+  useEffect(() => {
+    async function checkRecovery() {
+      try {
+        const { data } = await getCampaignRecovery();
+        if (data.interrupted) setRecoveryState(data);
+      } catch { /* silencioso */ }
+    }
+    checkRecovery();
+  }, []);
+
+  async function handleRecover() {
+    setIsRecovering(true);
+    try {
+      await recoverCampaign();
+      setRecoveryState(null);
+      await fetchStatus();
+      setFeedback({ type: 'success', message: 'Campanha retomada com sucesso.' });
+    } catch (err) {
+      setFeedback({ type: 'error', message: err.response?.data?.error ?? err.message });
+    } finally {
+      setIsRecovering(false);
+    }
+  }
+
+  async function handleCancelRecovery() {
+    setIsCancellingRec(true);
+    try {
+      await cancelCampaignRecovery();
+      setRecoveryState(null);
+    } catch (err) {
+      setFeedback({ type: 'error', message: err.response?.data?.error ?? err.message });
+    } finally {
+      setIsCancellingRec(false);
+    }
+  }
 
   function setText(index, value) {
     setTexts((prev) => prev.map((t, i) => (i === index ? value : t)));
@@ -486,6 +594,15 @@ export default function Disparo() {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
+      {recoveryState?.interrupted && recoveryState.campaign && (
+        <ModalRecovery
+          campaign={recoveryState.campaign}
+          isRecovering={isRecovering}
+          isCancelling={isCancellingRec}
+          onRecover={handleRecover}
+          onCancel={handleCancelRecovery}
+        />
+      )}
       {isPlanModalOpen && (
         <ModalPlan
           campaignName={campaignName.trim() || campaignId}
@@ -810,58 +927,83 @@ export default function Disparo() {
         </div>
 
         {/* ── Área de ação ─────────────────────────────────────────────────── */}
-        <div className="flex flex-wrap gap-3">
-          <button
-            onClick={() => { setFeedback(null); setIsPlanModalOpen(true); }}
-            disabled={!canOpenPlan}
-            className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700
-                       disabled:bg-gray-200 disabled:cursor-not-allowed
-                       text-white disabled:text-gray-400 font-semibold text-sm
-                       px-6 py-3 rounded-xl shadow-md transition-colors duration-150"
-          >
-            <Eye size={16} /> Visualizar Plano
-          </button>
+        {isRunning ? (
+          // Campanha rodando: apenas Cancelar + Envio Teste
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={handleStop}
+              disabled={isStopping}
+              className="flex items-center gap-2 bg-red-500 hover:bg-red-600 active:bg-red-700
+                         disabled:opacity-40 disabled:cursor-not-allowed
+                         text-white font-semibold text-sm
+                         px-8 py-3 rounded-xl shadow-md transition-colors duration-150"
+            >
+              {isStopping
+                ? <><Loader2 size={15} className="animate-spin" /> Cancelando...</>
+                : <><Square size={13} className="fill-white" /> Cancelar Campanha</>
+              }
+            </button>
+            <button
+              onClick={() => { setFeedback(null); setIsTestModalOpen(true); }}
+              className="flex items-center gap-2 bg-white hover:bg-gray-50
+                         border border-gray-300 text-gray-700 font-semibold text-sm
+                         px-6 py-3 rounded-xl shadow-sm transition-colors duration-150"
+            >
+              <Smartphone size={16} /> Envio Teste
+            </button>
+          </div>
+        ) : (
+          // Campanha parada: todos os controles disponíveis
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => { setFeedback(null); setIsPlanModalOpen(true); }}
+              disabled={!canOpenPlan}
+              className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700
+                         disabled:bg-gray-200 disabled:cursor-not-allowed
+                         text-white disabled:text-gray-400 font-semibold text-sm
+                         px-6 py-3 rounded-xl shadow-md transition-colors duration-150"
+            >
+              <Eye size={16} /> Visualizar Plano
+            </button>
 
-          <button
-            onClick={() => { setFeedback(null); setIsTestModalOpen(true); }}
-            className="flex items-center gap-2 bg-white hover:bg-gray-50 active:bg-gray-100
-                       border border-gray-300 text-gray-700 font-semibold text-sm
-                       px-6 py-3 rounded-xl shadow-sm transition-colors duration-150"
-          >
-            <Smartphone size={16} /> Envio Teste
-          </button>
+            <button
+              onClick={() => { setFeedback(null); setIsTestModalOpen(true); }}
+              className="flex items-center gap-2 bg-white hover:bg-gray-50 active:bg-gray-100
+                         border border-gray-300 text-gray-700 font-semibold text-sm
+                         px-6 py-3 rounded-xl shadow-sm transition-colors duration-150"
+            >
+              <Smartphone size={16} /> Envio Teste
+            </button>
 
-          <button
-            onClick={handlePurge}
-            disabled={isPurging}
-            className="flex items-center gap-2 bg-white hover:bg-red-50 active:bg-red-100
-                       border border-red-200 text-red-500 font-semibold text-sm
-                       px-6 py-3 rounded-xl shadow-sm transition-colors duration-150
-                       disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {isPurging
-              ? <><Loader2 size={15} className="animate-spin" /> Limpando...</>
-              : <><Trash2 size={15} /> Limpar Fila</>
-            }
-          </button>
+            <button
+              onClick={handlePurge}
+              disabled={isPurging}
+              className="flex items-center gap-2 bg-white hover:bg-red-50 active:bg-red-100
+                         border border-red-200 text-red-500 font-semibold text-sm
+                         px-6 py-3 rounded-xl shadow-sm transition-colors duration-150
+                         disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {isPurging
+                ? <><Loader2 size={15} className="animate-spin" /> Limpando...</>
+                : <><Trash2 size={15} /> Limpar Fila</>
+              }
+            </button>
 
-          <button
-            onClick={handleStop}
-            disabled={isStopping || (!isRunning && !campaignState)}
-            className={`flex items-center gap-2 font-semibold text-sm
-                       px-6 py-3 rounded-xl shadow-md transition-colors duration-150
-                       ${isRunning
-                         ? 'bg-red-500 hover:bg-red-600 active:bg-red-700 text-white'
-                         : 'bg-gray-200 hover:bg-gray-300 text-gray-600'
-                       }
-                       disabled:opacity-40 disabled:cursor-not-allowed`}
-          >
-            {isStopping
-              ? <><Loader2 size={15} className="animate-spin" /> Parando...</>
-              : <><Square size={13} className={isRunning ? 'fill-white' : 'fill-gray-600'} /> {isRunning ? 'Cancelar Campanha' : 'Forçar Parada'}</>
-            }
-          </button>
-        </div>
+            <button
+              onClick={handleStop}
+              disabled={isStopping || !campaignState}
+              className="flex items-center gap-2 bg-gray-200 hover:bg-gray-300
+                         text-gray-600 font-semibold text-sm
+                         px-6 py-3 rounded-xl shadow-sm transition-colors duration-150
+                         disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {isStopping
+                ? <><Loader2 size={15} className="animate-spin" /> Parando...</>
+                : <><Square size={13} className="fill-gray-600" /> Forçar Parada</>
+              }
+            </button>
+          </div>
+        )}
 
         {/* Feedback global */}
         {feedback && (
@@ -880,18 +1022,60 @@ export default function Disparo() {
           </div>
         )}
 
-        {/* Info da campanha em execução */}
+        {/* Live counters da campanha em execução */}
         {isRunning && campaignState?.campaign && (
-          <div className="max-w-lg bg-gray-900 rounded-2xl px-6 py-5 space-y-2">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Campanha em execução</p>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
-              <span className="text-gray-400">ID</span>
-              <span className="text-white font-medium">{campaignState.campaign.campaignId}</span>
-              <span className="text-gray-400">Iniciada em</span>
-              <span className="text-white">
-                {new Date(campaignState.campaign.startedAt).toLocaleTimeString('pt-BR')}
+          <div className="bg-gray-900 rounded-2xl px-6 py-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Campanha em execução</p>
+                <p className="text-white font-semibold mt-0.5">
+                  {campaignState.campaign.campaignName || campaignState.campaign.campaignId}
+                </p>
+              </div>
+              <span className="text-xs text-gray-500">
+                Desde {new Date(campaignState.campaign.startedAt).toLocaleTimeString('pt-BR')}
               </span>
             </div>
+
+            {campaignState.stats && (
+              <>
+                {/* Barra de progresso */}
+                {(() => {
+                  const { totalEnviados, totalPendentes, totalFalhas, total } = campaignState.stats;
+                  const pctEnv = total ? Math.round((totalEnviados  / total) * 100) : 0;
+                  const pctPen = total ? Math.round((totalPendentes / total) * 100) : 0;
+                  const pctFal = total ? Math.round((totalFalhas    / total) * 100) : 0;
+                  return (
+                    <div className="flex gap-0.5 h-2 rounded-full overflow-hidden bg-gray-700">
+                      {pctEnv > 0 && <div className="bg-emerald-400 transition-all duration-700" style={{ width: `${pctEnv}%` }} />}
+                      {pctFal > 0 && <div className="bg-red-400 transition-all duration-700"     style={{ width: `${pctFal}%` }} />}
+                      {pctPen > 0 && <div className="bg-amber-400 transition-all duration-700"   style={{ width: `${pctPen}%` }} />}
+                    </div>
+                  );
+                })()}
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-gray-800 rounded-xl px-4 py-3 text-center">
+                    <p className="text-emerald-400 text-xl font-bold leading-none">
+                      {campaignState.stats.totalEnviados.toLocaleString('pt-BR')}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">Enviados</p>
+                  </div>
+                  <div className="bg-gray-800 rounded-xl px-4 py-3 text-center">
+                    <p className="text-amber-400 text-xl font-bold leading-none">
+                      {campaignState.stats.totalPendentes.toLocaleString('pt-BR')}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">Pendentes</p>
+                  </div>
+                  <div className="bg-gray-800 rounded-xl px-4 py-3 text-center">
+                    <p className={`text-xl font-bold leading-none ${campaignState.stats.totalFalhas > 0 ? 'text-red-400' : 'text-gray-500'}`}>
+                      {campaignState.stats.totalFalhas.toLocaleString('pt-BR')}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">Falhas</p>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

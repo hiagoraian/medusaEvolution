@@ -55,6 +55,18 @@ export function getCampaignStatus() {
   return api.get('/orchestrator/status');
 }
 
+export function getCampaignRecovery() {
+  return api.get('/orchestrator/recovery');
+}
+
+export function recoverCampaign() {
+  return api.post('/orchestrator/recover');
+}
+
+export function cancelCampaignRecovery() {
+  return api.delete('/orchestrator/recovery');
+}
+
 // ── Aquecimento ───────────────────────────────────────────────────────────────
 
 export function getWarmupConfig() {

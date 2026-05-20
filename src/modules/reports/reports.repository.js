@@ -37,6 +37,15 @@ export async function getCampaignsHistory() {
 const ALLOWED_STATUSES = new Set(['pendente','enfileirado','enviado','invalido','falha_tecnica']);
 
 export async function exportContacts(campaignId, status) {
+  // nao_enviado = pendente + enfileirado combinados
+  if (status === 'nao_enviado') {
+    const { rows } = await query(
+      `SELECT phone FROM messages_queue WHERE campaign_id = $1 AND status IN ('pendente','enfileirado')`,
+      [campaignId]
+    );
+    return rows.map((r) => r.phone);
+  }
+
   if (!ALLOWED_STATUSES.has(status)) throw new Error(`Status inválido: ${status}`);
 
   const { rows } = await query(
@@ -45,6 +54,28 @@ export async function exportContacts(campaignId, status) {
   );
 
   return rows.map((r) => r.phone);
+}
+
+// ── Stats de campanha específica (para live counters no Disparo) ──────────────
+
+export async function getCampaignDbStats(campaignId) {
+  const { rows } = await query(`
+    SELECT
+      COUNT(*) FILTER (WHERE status IN ('enviado', 'invalido'))     AS total_enviados,
+      COUNT(*) FILTER (WHERE status IN ('pendente', 'enfileirado')) AS total_pendentes,
+      COUNT(*) FILTER (WHERE status = 'falha_tecnica')              AS total_falhas,
+      COUNT(*)                                                       AS total
+    FROM messages_queue
+    WHERE campaign_id = $1
+  `, [campaignId]);
+
+  const row = rows[0] ?? {};
+  return {
+    totalEnviados:  parseInt(row.total_enviados  ?? '0', 10),
+    totalPendentes: parseInt(row.total_pendentes ?? '0', 10),
+    totalFalhas:    parseInt(row.total_falhas    ?? '0', 10),
+    total:          parseInt(row.total           ?? '0', 10),
+  };
 }
 
 // ── Limpar todos os dados ─────────────────────────────────────────────────────

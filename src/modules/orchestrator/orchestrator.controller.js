@@ -1,5 +1,7 @@
-import { startCampaign, stopCampaign, getCampaignState } from './orchestrator.service.js';
-import { purgeQueue, QUEUES } from '../../core/rabbitmq.js';
+import { startCampaign, stopCampaign, getCampaignState, getRecoveryState, clearRecoveryState } from './orchestrator.service.js';
+import { purgeQueue, QUEUES }     from '../../core/rabbitmq.js';
+import { getCampaignDbStats }     from '../reports/reports.repository.js';
+import { resetListContacts }      from '../pipeline/pipeline.repository.js';
 
 // POST /api/orchestrator/start
 export async function startHandler(req, res) {
@@ -59,8 +61,54 @@ export function stopHandler(_req, res) {
 }
 
 // GET /api/orchestrator/status
-export function statusHandler(_req, res) {
-  return res.json(getCampaignState());
+export async function statusHandler(_req, res) {
+  const state = getCampaignState();
+  if (state.running && state.campaign?.campaignId) {
+    try {
+      const stats = await getCampaignDbStats(state.campaign.campaignId);
+      return res.json({ ...state, stats });
+    } catch { /* ignora falha no stats — retorna sem ele */ }
+  }
+  return res.json(state);
+}
+
+// GET /api/orchestrator/recovery
+export async function recoveryStatusHandler(_req, res) {
+  try {
+    const campaign = await getRecoveryState();
+    return res.json({ interrupted: !!campaign, campaign: campaign ?? null });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+}
+
+// POST /api/orchestrator/recover
+export async function recoverHandler(_req, res) {
+  const state = await getRecoveryState();
+  if (!state) return res.status(404).json({ error: 'Nenhuma campanha interrompida para retomar.' });
+
+  // Limpa a fila e reseta contatos presos como enfileirado → importado
+  // para que o armCampaign os re-arme corretamente
+  try { await purgeQueue(QUEUES.OUTBOUND); } catch { /* ignora se fila já estava vazia */ }
+  try { await resetListContacts(state.campaignId); } catch { /* ignora */ }
+
+  const result = await startCampaign(state.campaignId, state.texts, {
+    ...state.options,
+    campaignName: state.campaignName,
+  });
+
+  if (!result.success) return res.status(409).json({ error: result.reason });
+  return res.status(202).json(result);
+}
+
+// DELETE /api/orchestrator/recovery
+export async function cancelRecoveryHandler(_req, res) {
+  try {
+    await clearRecoveryState();
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
 }
 
 // POST /api/orchestrator/purge
