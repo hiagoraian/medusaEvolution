@@ -87,6 +87,10 @@ export async function handleEvolutionWebhook(req, res) {
 
       // ── Mensagens recebidas → inbound_queue ────────────────────────────────
       case 'MESSAGES_UPSERT': {
+        // WA-49 é número pessoal — só serve para encaminhar, não recebe
+        const adminZap = process.env.ADMIN_ZAP ?? 'WA-49';
+        if (instance === adminZap) break;
+
         const rawData = body?.data;
         const msgs    = Array.isArray(rawData) ? rawData : [rawData];
 
