@@ -18,10 +18,15 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function isOwnFleetJid(remoteJid) {
   try {
+    const adminZap = process.env.ADMIN_ZAP ?? 'WA-49';
     const map = await fetchAllInstancesPhones();
-    return Object.values(map).includes(remoteJid);
+    // Exclui o admin ZAP — é número pessoal, não participa do warmup
+    const fleetPhones = Object.entries(map)
+      .filter(([id]) => id !== adminZap)
+      .map(([, phone]) => phone);
+    return fleetPhones.includes(remoteJid);
   } catch {
-    return false; // fail-open: nunca descarta mensagem de cliente real por erro
+    return false;
   }
 }
 
