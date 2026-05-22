@@ -86,10 +86,13 @@ function durationFromSchedule(startAt, endAt) {
   return 4;
 }
 
-function calcDelay(durationHours, totalPending) {
+function calcDelay(endAt, totalPending, durationHours) {
   if (!totalPending) return MIN_DELAY_MS;
-  const totalMs        = durationHours * 60 * 60 * 1_000;
-  const delayFlexivel  = totalMs / totalPending;
+  const remainingMs = endAt
+    ? Math.max(new Date(endAt) - Date.now(), 0)
+    : durationHours * 3_600_000;
+  if (!remainingMs) return MIN_DELAY_MS;
+  const delayFlexivel = remainingMs / totalPending;
   return Math.max(delayFlexivel, MIN_DELAY_MS);
 }
 
@@ -136,12 +139,15 @@ async function runCampaignLoop(campaignId, texts, options) {
       break;
     }
 
-    const delayFlexivelMs = calcDelay(durationHours, totalPending);
+    const delayFlexivelMs = calcDelay(endAt, totalPending, durationHours);
 
+    const remainingMin = endAt
+      ? ((Math.max(new Date(endAt) - Date.now(), 0)) / 60_000).toFixed(0)
+      : (durationHours * 60).toFixed(0);
     console.log(
       `[ORCHESTRATOR] Campanha "${campaignId}" | ` +
       `Pendentes: ${totalPending} | ` +
-      `Duração: ${durationHours}h | ` +
+      `Tempo restante: ${remainingMin} min | ` +
       `Delay calculado: ${(delayFlexivelMs / 1000).toFixed(1)}s por mensagem`
     );
 
