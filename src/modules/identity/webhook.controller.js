@@ -117,7 +117,6 @@ export async function handleEvolutionWebhook(req, res) {
           if (messageType === 'messageContextInfo'           ||
               messageType === 'senderKeyDistributionMessage' ||
               messageType === 'protocolMessage'              ||
-              messageType === 'reactionMessage'              ||
               messageType === 'templateMessage'              ||
               messageType === 'ephemeralMessage'             ||
               messageType === 'buttonsMessage'               ||

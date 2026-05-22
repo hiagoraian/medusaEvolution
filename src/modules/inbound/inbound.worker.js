@@ -11,7 +11,6 @@ const IGNORED_TYPES = new Set([
   'messageContextInfo',
   'senderKeyDistributionMessage',
   'protocolMessage',
-  'reactionMessage',
 ]);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
