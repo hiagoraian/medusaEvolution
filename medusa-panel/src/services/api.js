@@ -93,6 +93,10 @@ export function disconnectWhatsApp(accountId) {
   return api.post(`/whatsapp/disconnect/${encodeURIComponent(accountId)}`);
 }
 
+export function applyProxies() {
+  return api.post('/whatsapp/apply-proxies');
+}
+
 export function getWhatsAppGroups(accountId) {
   return api.get(`/whatsapp/groups/${encodeURIComponent(accountId)}`);
 }

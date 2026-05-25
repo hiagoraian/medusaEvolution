@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  Wifi, WifiOff, Loader2, QrCode, Trash2, X, RefreshCw, AlertCircle, Shield, Users, Copy, CheckCheck,
+  Wifi, WifiOff, Loader2, QrCode, Trash2, X, RefreshCw, AlertCircle, Shield, Users, Copy, CheckCheck, Globe,
 } from 'lucide-react';
-import { startWhatsApp, getQrCode, disconnectWhatsApp, deleteWhatsApp, getConnectedInstances, getWhatsAppGroups } from '../services/api.js';
+import { startWhatsApp, getQrCode, disconnectWhatsApp, deleteWhatsApp, getConnectedInstances, getWhatsAppGroups, applyProxies } from '../services/api.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -394,6 +394,10 @@ export default function Configuracoes() {
   const [groupsError,    setGroupsError]    = useState('');
   const [copiedId,       setCopiedId]       = useState('');
 
+  // ── Proxy ────────────────────────────────────────────────────────────────────
+  const [proxyResult,    setProxyResult]    = useState(null); // { success, failed, skipped }
+  const [applyingProxy,  setApplyingProxy]  = useState(false);
+
   async function fetchAdminGroups() {
     setLoadingGroups(true);
     setGroupsError('');
@@ -412,6 +416,19 @@ export default function Configuracoes() {
       setCopiedId(id);
       setTimeout(() => setCopiedId(''), 2_000);
     });
+  }
+
+  async function handleApplyProxies() {
+    setApplyingProxy(true);
+    setProxyResult(null);
+    try {
+      const { data } = await applyProxies();
+      setProxyResult(data);
+    } catch (err) {
+      setProxyResult({ error: err.response?.data?.error ?? err.message });
+    } finally {
+      setApplyingProxy(false);
+    }
   }
 
   const fetchInstances = useCallback(async () => {
@@ -589,6 +606,76 @@ export default function Configuracoes() {
             <p className="text-sm text-gray-400 text-center py-4">
               Clique em <strong>Buscar</strong> para listar os grupos do WA-49.
             </p>
+          )}
+
+        </div>
+
+        {/* ── Proxy EveryProxy ──────────────────────────────────────────────── */}
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
+
+          <div className="flex items-center gap-2.5">
+            <Globe size={18} className="text-emerald-500" />
+            <h2 className="text-base font-semibold text-gray-800">Proxy (EveryProxy)</h2>
+          </div>
+
+          <p className="text-sm text-gray-500">
+            Aplica o proxy configurado no <code className="bg-gray-100 px-1 rounded text-xs">.env</code> em todas
+            as instâncias de uma vez. Execute com o EveryProxy rodando nos 4 celulares.
+          </p>
+
+          <div className="bg-gray-50 rounded-xl p-3 text-xs font-mono text-gray-500 space-y-1">
+            <p>ZTE_1_PROXY_URL=http://IP_ZTE1:8085  → WA-01 a WA-12</p>
+            <p>ZTE_2_PROXY_URL=http://IP_ZTE2:8086  → WA-13 a WA-24</p>
+            <p>ZTE_3_PROXY_URL=http://IP_ZTE3:8087  → WA-25 a WA-36</p>
+            <p>ZTE_4_PROXY_URL=http://IP_ZTE4:8088  → WA-37 a WA-48</p>
+          </div>
+
+          <button
+            onClick={handleApplyProxies}
+            disabled={applyingProxy}
+            className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600
+                       disabled:bg-gray-200 disabled:cursor-not-allowed
+                       text-white disabled:text-gray-400 text-sm font-semibold
+                       px-5 py-2.5 rounded-xl transition"
+          >
+            {applyingProxy
+              ? <><Loader2 size={14} className="animate-spin" /> Aplicando...</>
+              : <><Globe size={14} /> Aplicar Proxies em Todos os ZAPs</>
+            }
+          </button>
+
+          {proxyResult && !proxyResult.error && (
+            <div className="space-y-2">
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+                  <p className="text-emerald-700 font-bold text-lg">{proxyResult.success?.length ?? 0}</p>
+                  <p className="text-xs text-emerald-600">Aplicados</p>
+                </div>
+                <div className={`border rounded-xl px-3 py-2 ${proxyResult.failed?.length > 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'}`}>
+                  <p className={`font-bold text-lg ${proxyResult.failed?.length > 0 ? 'text-red-600' : 'text-gray-400'}`}>{proxyResult.failed?.length ?? 0}</p>
+                  <p className={`text-xs ${proxyResult.failed?.length > 0 ? 'text-red-500' : 'text-gray-400'}`}>Falhas</p>
+                </div>
+                <div className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+                  <p className="text-gray-500 font-bold text-lg">{proxyResult.skipped?.length ?? 0}</p>
+                  <p className="text-xs text-gray-400">Ignorados</p>
+                </div>
+              </div>
+              {proxyResult.failed?.length > 0 && (
+                <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2 space-y-1">
+                  {proxyResult.failed.map((f) => (
+                    <p key={f.id}><strong>{f.id}:</strong> {f.reason}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {proxyResult?.error && (
+            <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50
+                            border border-red-200 rounded-xl px-4 py-3">
+              <AlertCircle size={14} className="flex-shrink-0" />
+              {proxyResult.error}
+            </div>
           )}
 
         </div>

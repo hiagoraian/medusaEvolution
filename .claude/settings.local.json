@@ -41,7 +41,11 @@
       "Bash(Get-ChildItem -Path \"c:\\\\medusaEvolution\\\\src\" -Recurse -Include \"*.md\",\"*.txt\",\"*.doc*\" -ErrorAction SilentlyContinue)",
       "Bash(pm2 list *)",
       "Bash(del \"c:\\\\medusaEvolution\\\\src\\\\modules\\\\network\\\\adb.service.js\")",
-      "Bash(git rm *)"
+      "Bash(git rm *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" -X GET \"http://localhost:8081/proxy/find/WA-01\" -H \"apikey: $\\(grep EVOLUTION_API_KEY c:/medusaEvolution/.env)",
+      "Bash(curl -s \"http://localhost:8081/proxy/find/WA-01\" -H \"apikey: $\\(grep EVOLUTION_API_KEY c:/medusaEvolution/.env)",
+      "Bash(curl -s -X PUT http://localhost:8081/proxy/set/WA-01 -H 'apikey: __CMDSUB_OUTPUT__')",
+      "Bash(curl -s -X POST http://localhost:8081/proxy/set/WA-01 -H 'apikey: __CMDSUB_OUTPUT__')"
     ]
   }
 }

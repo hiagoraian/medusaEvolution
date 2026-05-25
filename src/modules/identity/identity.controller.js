@@ -1,9 +1,9 @@
-import { createInstance, fetchInstanceState, reconnectInstance, logoutInstance, restartInstance, deleteInstance, fetchGroups } from './evolution.client.js';
+import { createInstance, fetchInstanceState, reconnectInstance, logoutInstance, restartInstance, deleteInstance, fetchGroups, setInstanceProxy } from './evolution.client.js';
 import {
   saveConnectData, getConnectData, isInstanceOnline, listInstanceStatuses,
   setInstanceOnline, setInstanceOffline, deleteConnectData, isExplicitlyOffline,
 } from './cache.service.js';
-import { resolveProxy } from './proxy.service.js';
+import { resolveProxy, buildProxyConfig } from './proxy.service.js';
 import { ZTE_CONFIG } from '../network/network.config.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -212,6 +212,42 @@ export async function deleteInstanceHandler(req, res) {
   ]);
 
   return res.json({ status: 'ok', deleted: accountId });
+}
+
+// POST /api/whatsapp/apply-proxies
+// Aplica o proxy correto em todos os ZAPs com base no ZTE_CONFIG + .env
+export async function applyProxiesHandler(_req, res) {
+  const results = { success: [], failed: [], skipped: [] };
+
+  const entries = Object.entries(ZTE_CONFIG);
+
+  for (const [zteId, config] of entries) {
+    if (!config.proxyUrl) {
+      results.skipped.push(...config.accounts.map((id) => ({ id, reason: `${zteId} sem proxy configurado no .env` })));
+      continue;
+    }
+
+    const proxyConfig = buildProxyConfig(config.proxyUrl);
+    if (!proxyConfig) {
+      results.skipped.push(...config.accounts.map((id) => ({ id, reason: `URL de proxy inválida: ${config.proxyUrl}` })));
+      continue;
+    }
+
+    for (const accountId of config.accounts) {
+      try {
+        await setInstanceProxy(accountId, proxyConfig);
+        console.log(`[PROXY] ${accountId} → ${config.proxyUrl} ✓`);
+        results.success.push(accountId);
+      } catch (err) {
+        const reason = err.response?.data?.response?.message?.[0] ?? err.response?.data?.error ?? err.message;
+        console.warn(`[PROXY] ${accountId} falhou: ${reason}`);
+        results.failed.push({ id: accountId, reason });
+      }
+    }
+  }
+
+  console.log(`[PROXY] Bulk apply concluído — ✓ ${results.success.length} | ✗ ${results.failed.length} | skip ${results.skipped.length}`);
+  return res.json(results);
 }
 
 // GET /api/whatsapp/groups/:accountId

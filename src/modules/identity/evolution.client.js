@@ -79,6 +79,20 @@ export async function deleteInstance(accountId, force = false) {
   return data;
 }
 
+// Aplica ou atualiza proxy em instância existente (Evolution API valida a conexão)
+export async function setInstanceProxy(accountId, proxyConfig) {
+  const body = {
+    enabled:  true,
+    host:     proxyConfig.host,
+    port:     String(proxyConfig.port),
+    protocol: proxyConfig.protocol ?? 'http',
+    username: proxyConfig.username ?? '',
+    password: proxyConfig.password ?? '',
+  };
+  const { data } = await client.post(`/proxy/set/${accountId}`, body);
+  return data;
+}
+
 // ── Grupos ────────────────────────────────────────────────────────────────────
 
 export async function fetchGroups(accountId) {
