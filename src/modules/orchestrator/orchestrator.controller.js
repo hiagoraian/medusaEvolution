@@ -1,4 +1,4 @@
-import { startCampaign, stopCampaign, getCampaignState, getRecoveryState, clearRecoveryState } from './orchestrator.service.js';
+import { startCampaign, stopCampaign, getCampaignState, getRecoveryState, clearRecoveryState, resumeCampaign, suspendCampaign } from './orchestrator.service.js';
 import { purgeQueue, QUEUES }     from '../../core/rabbitmq.js';
 import { getCampaignDbStats }     from '../reports/reports.repository.js';
 import { resetListContacts }      from '../pipeline/pipeline.repository.js';
@@ -39,6 +39,7 @@ export async function startHandler(req, res) {
   const result = await startCampaign(campaignId, normalizedTexts, {
     campaignName:  campaignName?.trim() || campaignId,
     maxPerZap:     Number(maxPerZap) || 30,
+    maxOfflineZaps: req.body.maxOfflineZaps ? Number(req.body.maxOfflineZaps) : null,
     zaps:          normalizedZaps,
     startAt:       startAt ?? null,
     endAt:         endAt   ?? null,
@@ -109,6 +110,20 @@ export async function cancelRecoveryHandler(_req, res) {
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
+}
+
+// POST /api/orchestrator/resume
+export function resumeHandler(_req, res) {
+  const result = resumeCampaign();
+  if (!result.success) return res.status(409).json({ error: result.reason });
+  return res.json(result);
+}
+
+// POST /api/orchestrator/suspend
+export function suspendHandler(_req, res) {
+  const result = suspendCampaign();
+  if (!result.success) return res.status(409).json({ error: result.reason });
+  return res.json(result);
 }
 
 // POST /api/orchestrator/purge

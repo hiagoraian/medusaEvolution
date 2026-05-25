@@ -8,6 +8,7 @@ import {
   startCampaign, stopCampaign, purgeQueue, getCampaignStatus, sendTestMessage,
   getLists, getConnectedInstances, uploadMedia,
   getCampaignRecovery, recoverCampaign, cancelCampaignRecovery,
+  resumeCampaign, suspendCampaign,
 } from '../services/api.js';
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -368,6 +369,66 @@ function ModalRecovery({ campaign, isRecovering, isCancelling, onRecover, onCanc
   );
 }
 
+// ── Modal: Campanha Pausada (ZAPs offline) ────────────────────────────────────
+
+function ModalPaused({ pausedZaps, isResuming, isSuspending, onResume, onSuspend }) {
+  return (
+    <ModalBackdrop onClose={() => {}}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-orange-100 bg-orange-50 rounded-t-2xl">
+          <AlertCircle size={18} className="text-orange-500 flex-shrink-0" />
+          <h2 className="text-sm font-semibold text-orange-800">Campanha Pausada</h2>
+        </div>
+
+        <div className="px-5 py-5 space-y-3">
+          <p className="text-sm text-gray-600">
+            O limite de ZAPs desconectados foi atingido ao fim da última onda.
+          </p>
+          {pausedZaps?.length > 0 && (
+            <div className="bg-gray-50 rounded-xl p-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                ZAPs desconectados
+              </p>
+              <p className="text-sm font-medium text-gray-700">
+                {pausedZaps.join(', ')}
+              </p>
+            </div>
+          )}
+          <p className="text-xs text-gray-500">
+            <strong>Continuar</strong> retoma a campanha agora. <strong>Suspender</strong> encerra o loop
+            e preserva os pendentes para retomar amanhã.
+          </p>
+        </div>
+
+        <div className="flex gap-2 px-5 pb-5">
+          <button
+            onClick={onSuspend}
+            disabled={isSuspending || isResuming}
+            className="flex-1 py-2.5 rounded-xl border border-gray-300 text-sm
+                       text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition"
+          >
+            {isSuspending ? <><Loader2 size={13} className="inline animate-spin mr-1" />Suspendendo...</> : 'Suspender'}
+          </button>
+          <button
+            onClick={onResume}
+            disabled={isResuming || isSuspending}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl
+                       bg-emerald-500 hover:bg-emerald-600
+                       disabled:bg-gray-200 disabled:cursor-not-allowed
+                       text-white disabled:text-gray-400 text-sm font-semibold transition"
+          >
+            {isResuming
+              ? <><Loader2 size={13} className="animate-spin" /> Retomando...</>
+              : <><RefreshCw size={13} /> Continuar</>
+            }
+          </button>
+        </div>
+      </div>
+    </ModalBackdrop>
+  );
+}
+
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export default function Disparo() {
@@ -386,9 +447,12 @@ export default function Disparo() {
   const [isTestModalOpen, setIsTestModalOpen]   = useState(false);
   const [enabledLists,    setEnabledLists]      = useState([]);
   const [listsLoading,    setListsLoading]      = useState(false);
+  const [maxOfflineZaps,  setMaxOfflineZaps]    = useState('');
   const [recoveryState,   setRecoveryState]     = useState(null); // { interrupted, campaign }
   const [isRecovering,    setIsRecovering]      = useState(false);
   const [isCancellingRec, setIsCancellingRec]   = useState(false);
+  const [isResuming,      setIsResuming]        = useState(false);
+  const [isSuspending,    setIsSuspending]      = useState(false);
 
   // Mídia
   const [mediaUpload,  setMediaUpload]  = useState(null); // { filePath, fileName, mediaType, sizeKb }
@@ -485,6 +549,31 @@ export default function Disparo() {
     }
   }
 
+  async function handleResume() {
+    setIsResuming(true);
+    try {
+      await resumeCampaign();
+      setFeedback({ type: 'success', message: 'Campanha retomada.' });
+    } catch (err) {
+      setFeedback({ type: 'error', message: err.response?.data?.error ?? err.message });
+    } finally {
+      setIsResuming(false);
+    }
+  }
+
+  async function handleSuspend() {
+    setIsSuspending(true);
+    try {
+      await suspendCampaign();
+      setFeedback({ type: 'success', message: 'Campanha suspensa — pendentes preservados para amanhã.' });
+      await fetchStatus();
+    } catch (err) {
+      setFeedback({ type: 'error', message: err.response?.data?.error ?? err.message });
+    } finally {
+      setIsSuspending(false);
+    }
+  }
+
   function setText(index, value) {
     setTexts((prev) => prev.map((t, i) => (i === index ? value : t)));
   }
@@ -532,14 +621,15 @@ export default function Disparo() {
     setFeedback(null);
     try {
       const { data } = await startCampaign({
-        campaignId:   id,
-        campaignName: campaignName.trim() || id,
-        texts:        texts.filter((t) => t.trim()),
+        campaignId:    id,
+        campaignName:  campaignName.trim() || id,
+        texts:         texts.filter((t) => t.trim()),
         maxPerZap,
+        maxOfflineZaps: maxOfflineZaps ? Number(maxOfflineZaps) : null,
         zaps,
-        startAt:      startAt ? new Date(startAt).toISOString() : null,
-        endAt:        endAt   ? new Date(endAt).toISOString()   : null,
-        media:        mediaUpload
+        startAt:       startAt ? new Date(startAt).toISOString() : null,
+        endAt:         endAt   ? new Date(endAt).toISOString()   : null,
+        media:         mediaUpload
           ? { filePath: mediaUpload.filePath, mediaType: mediaUpload.mediaType }
           : null,
       });
@@ -591,12 +681,22 @@ export default function Disparo() {
   }
 
   const isRunning   = campaignState?.running;
+  const isPaused    = campaignState?.paused;
   const canStop     = isRunning && !campaignState?.stopRequested;
   const canOpenPlan = !!campaignId.trim() && texts.some((t) => t.trim()) && !isRunning && !isUploading;
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
+      {isPaused && (
+        <ModalPaused
+          pausedZaps={campaignState?.pausedZaps ?? []}
+          isResuming={isResuming}
+          isSuspending={isSuspending}
+          onResume={handleResume}
+          onSuspend={handleSuspend}
+        />
+      )}
       {recoveryState?.interrupted && recoveryState.campaign && (
         <ModalRecovery
           campaign={recoveryState.campaign}
@@ -733,6 +833,26 @@ export default function Disparo() {
               />
               <p className="text-xs text-gray-400 mt-1">
                 Se um Zap cair, os outros assumem até atingir esse limite.
+              </p>
+            </div>
+
+            <div>
+              <InputLabel>
+                <span className="flex items-center gap-1.5">
+                  <AlertCircle size={13} className="text-gray-400" /> Máx. ZAPs desconectados (opcional)
+                </span>
+              </InputLabel>
+              <input
+                type="number" min={1} max={48} value={maxOfflineZaps}
+                onChange={(e) => setMaxOfflineZaps(e.target.value)}
+                placeholder="Ex: 4 — deixe vazio para não pausar"
+                disabled={isRunning}
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-800
+                           placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500
+                           disabled:bg-gray-50 disabled:cursor-not-allowed transition"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Se atingido ao fim de uma onda, a campanha pausa e aguarda sua decisão.
               </p>
             </div>
           </Card>

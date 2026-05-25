@@ -2,6 +2,7 @@ import { Router }                           from 'express';
 import {
   startHandler, stopHandler, statusHandler, purgeHandler,
   recoveryStatusHandler, recoverHandler, cancelRecoveryHandler,
+  resumeHandler, suspendHandler,
 } from './orchestrator.controller.js';
 
 const router = Router();
@@ -13,5 +14,7 @@ router.post('/purge',      purgeHandler);            // POST   /api/orchestrator
 router.get('/recovery',    recoveryStatusHandler);   // GET    /api/orchestrator/recovery
 router.post('/recover',    recoverHandler);          // POST   /api/orchestrator/recover
 router.delete('/recovery', cancelRecoveryHandler);   // DELETE /api/orchestrator/recovery
+router.post('/resume',     resumeHandler);           // POST   /api/orchestrator/resume
+router.post('/suspend',    suspendHandler);          // POST   /api/orchestrator/suspend
 
 export default router;

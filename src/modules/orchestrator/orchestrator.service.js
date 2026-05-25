@@ -22,7 +22,10 @@ const REDIS_KEY = 'orchestrator:active_campaign';
 
 let isCampaignRunning = false;
 let stopRequested     = false;
+let isPaused          = false;
+let suspendMode       = false; // true = para o loop mas mantém Redis (recovery modal)
 let _activeCampaign   = null; // { campaignId, texts, options, startedAt }
+let _pausedZaps       = [];   // ZAPs que causaram a pausa
 
 // ── Helpers internos ──────────────────────────────────────────────────────────
 
@@ -112,7 +115,7 @@ function calcWave(endAt, totalPending, durationHours) {
 // ── Loop principal ────────────────────────────────────────────────────────────
 
 async function runCampaignLoop(campaignId, texts, options) {
-  const { durationHours, startAt, endAt, media } = options;
+  const { durationHours, startAt, endAt, media, maxOfflineZaps } = options;
   let wave = 0;
 
   while (!stopRequested) {
@@ -221,7 +224,21 @@ async function runCampaignLoop(campaignId, texts, options) {
     const zapsCaidos   = online.filter((id) => !onlineSet.has(id));
 
     sendCycleReport({ campaignId, wave, zapsCaidos }).catch(() => {});
-    // fire-and-forget — falha no relatório não interrompe a campanha
+
+    // ── Passo 6.6: Verificar limite de ZAPs offline ───────────────────────
+    if (maxOfflineZaps && zapsCaidos.length >= maxOfflineZaps) {
+      _pausedZaps = zapsCaidos;
+      isPaused    = true;
+      console.log(
+        `[ORCHESTRATOR] ${zapsCaidos.length} ZAP(s) desconectados (limite: ${maxOfflineZaps}) — ` +
+        `pausado aguardando decisão do operador. ZAPs: ${zapsCaidos.join(', ')}`
+      );
+      while (isPaused && !stopRequested) {
+        await sleep(STOP_POLL_INTERVAL);
+      }
+      _pausedZaps = [];
+      if (!stopRequested) console.log('[ORCHESTRATOR] Campanha retomada pelo operador.');
+    }
 
     // ── Passo 7: Rotação de IP escalonada (fire-and-forget) ───────────────
     const activeZtes = getAllZteIds().filter((id) => ZTE_CONFIG[id].serial);
@@ -252,12 +269,13 @@ export async function startCampaign(campaignId, texts, options = {}) {
   const endAt   = options.endAt   ?? null;
 
   const opts = {
-    durationHours: durationFromSchedule(startAt, endAt),
-    maxPerZap:     options.maxPerZap ?? 30,
-    zaps:          Array.isArray(options.zaps) ? options.zaps : [],
+    durationHours:  durationFromSchedule(startAt, endAt),
+    maxPerZap:      options.maxPerZap ?? 30,
+    maxOfflineZaps: options.maxOfflineZaps ? Number(options.maxOfflineZaps) : null,
+    zaps:           Array.isArray(options.zaps) ? options.zaps : [],
     startAt,
     endAt,
-    media:         options.media ?? null,
+    media:          options.media ?? null,
   };
 
   // Arma a campanha: converte 'importado' → 'pendente' (lista em repouso vira ativa)
@@ -290,7 +308,10 @@ export async function startCampaign(campaignId, texts, options = {}) {
     .finally(() => {
       isCampaignRunning = false;
       _activeCampaign   = null;
-      delCache(REDIS_KEY).catch(() => {});
+      isPaused          = false;
+      _pausedZaps       = [];
+      if (!suspendMode) delCache(REDIS_KEY).catch(() => {});
+      suspendMode = false;
     });
 
   return {
@@ -318,9 +339,27 @@ export function stopCampaign() {
 export function getCampaignState() {
   return {
     running:       isCampaignRunning,
+    paused:        isPaused,
+    pausedZaps:    _pausedZaps,
     campaign:      _activeCampaign,
     stopRequested,
   };
+}
+
+export function resumeCampaign() {
+  if (!isPaused) return { success: false, reason: 'Campanha não está pausada.' };
+  isPaused = false;
+  console.log('[ORCHESTRATOR] Retomada solicitada pelo operador.');
+  return { success: true };
+}
+
+export function suspendCampaign() {
+  if (!isCampaignRunning) return { success: false, reason: 'Nenhuma campanha em execução.' };
+  suspendMode   = true;
+  isPaused      = false;
+  stopRequested = true;
+  console.log('[ORCHESTRATOR] Suspensão solicitada — estado preservado no Redis para recovery.');
+  return { success: true };
 }
 
 export async function getRecoveryState() {
