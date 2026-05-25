@@ -1,7 +1,6 @@
 import { fetchAndMarkPendingBatch, countPending, armCampaign } from '../pipeline/pipeline.repository.js';
 import { enqueueMessages }                        from '../outbound/producer.service.js';
-import { rotateIp }                               from '../network/network.service.js';
-import { ZTE_CONFIG, getAllZteIds }               from '../network/network.config.js';
+import { ZTE_CONFIG }                             from '../network/network.config.js';
 import { isInstanceOnline }                       from '../identity/cache.service.js';
 import { sendCycleReport }                        from '../reports/cycle.reporter.js';
 import { setCache, delCache, getCache }           from '../../core/redis.js';
@@ -10,7 +9,6 @@ import { setCache, delCache, getCache }           from '../../core/redis.js';
 
 const MAX_WAVE_SIZE       = 500;        // teto por onda
 const WAVE_INTERVAL_MS    = 60 * 60_000; // cada onda cobre ~1h
-const ROTATION_STAGGER_MS = 15_000;   // 15 s entre rotações de cada ZTE
 const OUT_OF_WINDOW_MS    = 5 * 60_000; // 5 min hibernando fora da janela
 const NO_ACCOUNTS_MS      = 2 * 60_000; // 2 min se todas as instâncias caírem
 const STOP_POLL_INTERVAL  = 10_000;     // granularidade do sleep interrompível
@@ -240,16 +238,6 @@ async function runCampaignLoop(campaignId, texts, options) {
       if (!stopRequested) console.log('[ORCHESTRATOR] Campanha retomada pelo operador.');
     }
 
-    // ── Passo 7: Rotação de IP escalonada (fire-and-forget) ───────────────
-    const activeZtes = getAllZteIds().filter((id) => ZTE_CONFIG[id].serial);
-    if (activeZtes.length) {
-      console.log(`[ORCHESTRATOR] Disparando rotação escalonada — ${activeZtes.length} ZTE(s).`);
-      for (let i = 0; i < activeZtes.length; i++) {
-        rotateIp(activeZtes[i]);
-        console.log(`[ORCHESTRATOR] Rotação iniciada: ${activeZtes[i]}`);
-        if (i < activeZtes.length - 1) await sleep(ROTATION_STAGGER_MS);
-      }
-    }
   }
 
   stopRequested = false;

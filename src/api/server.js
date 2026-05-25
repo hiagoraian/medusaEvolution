@@ -42,7 +42,6 @@ app.use('/webhook/evolution',  webhookRoutes);    // POST /webhook/evolution
 app.use('/api/campaign',       outboundRoutes);   // POST /api/campaign/test-shoot
 app.use('/api/pipeline',       pipelineRoutes);   // POST /api/pipeline/upload
 app.use('/api/network',        networkRoutes);    // GET  /api/network/status
-                                                  // POST /api/network/rotate/:zteId
 app.use('/api/orchestrator',   orchestratorRoutes); // POST /api/orchestrator/start
                                                     // POST /api/orchestrator/stop
                                                     // GET  /api/orchestrator/status
@@ -95,7 +94,6 @@ async function bootstrap() {
     console.log(`[SERVER] POST /api/campaign/test-shoot`);
     console.log(`[SERVER] POST /api/pipeline/upload`);
     console.log(`[SERVER] GET  /api/network/status`);
-    console.log(`[SERVER] POST /api/network/rotate/:zteId`);
     console.log(`[SERVER] POST /api/orchestrator/start`);
     console.log(`[SERVER] POST /api/orchestrator/stop`);
     console.log(`[SERVER] GET  /api/orchestrator/status`);
