@@ -101,6 +101,12 @@ export async function handleEvolutionWebhook(req, res) {
           const remoteJid = key.remoteJid ?? '';
 
           // ── Filtros ────────────────────────────────────────────────────────
+          const message0    = msg.message ?? {};
+          const msgType0    = Object.keys(message0)[0] ?? '';
+          if (msgType0 === 'reactionMessage') {
+            console.log(`[WEBHOOK][DEBUG] reactionMessage — fromMe=${key.fromMe} remoteJid=${remoteJid} payload=${JSON.stringify(msg.message).slice(0,200)}`);
+          }
+
           if (key.fromMe)                             continue;
           if (remoteJid.endsWith('@g.us'))            continue;
           if (remoteJid.endsWith('@broadcast'))       continue;
