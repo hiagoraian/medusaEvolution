@@ -101,12 +101,6 @@ export async function handleEvolutionWebhook(req, res) {
           const remoteJid = key.remoteJid ?? '';
 
           // ── Filtros ────────────────────────────────────────────────────────
-          const message0    = msg.message ?? {};
-          const msgType0    = Object.keys(message0)[0] ?? '';
-          if (msgType0 === 'reactionMessage') {
-            console.log(`[WEBHOOK][DEBUG] reactionMessage — fromMe=${key.fromMe} remoteJid=${remoteJid} payload=${JSON.stringify(msg.message).slice(0,200)}`);
-          }
-
           if (key.fromMe)                             continue;
           if (remoteJid.endsWith('@g.us'))            continue;
           if (remoteJid.endsWith('@broadcast'))       continue;
@@ -117,7 +111,10 @@ export async function handleEvolutionWebhook(req, res) {
           }
 
           const message     = msg.message ?? {};
-          const messageType = Object.keys(message)[0] ?? 'unknown';
+          // reactionMessage pode vir junto com messageContextInfo — prioriza explicitamente
+          const messageType = message.reactionMessage
+            ? 'reactionMessage'
+            : Object.keys(message)[0] ?? 'unknown';
 
           // Tipos internos/sistema do WhatsApp — descarta antes de entrar na fila
           if (messageType === 'messageContextInfo'           ||
