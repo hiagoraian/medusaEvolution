@@ -8,7 +8,8 @@ import { setCache, delCache, getCache }           from '../../core/redis.js';
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 
-const BATCH_SIZE          = 500;
+const MAX_WAVE_SIZE       = 500;        // teto por onda
+const WAVE_INTERVAL_MS    = 60 * 60_000; // cada onda cobre ~1h
 const ROTATION_STAGGER_MS = 15_000;   // 15 s entre rotações de cada ZTE
 const OUT_OF_WINDOW_MS    = 5 * 60_000; // 5 min hibernando fora da janela
 const NO_ACCOUNTS_MS      = 2 * 60_000; // 2 min se todas as instâncias caírem
@@ -86,14 +87,26 @@ function durationFromSchedule(startAt, endAt) {
   return 4;
 }
 
-function calcDelay(endAt, totalPending, durationHours) {
-  if (!totalPending) return MIN_DELAY_MS;
-  const remainingMs = endAt
+// Retorna quantas msgs desta onda e o delay entre cada uma.
+// Cada onda cobre ~1h; o tamanho é totalPending / horas restantes.
+function calcWave(endAt, totalPending, durationHours) {
+  const remainingMs    = endAt
     ? Math.max(new Date(endAt) - Date.now(), 0)
     : durationHours * 3_600_000;
-  if (!remainingMs) return MIN_DELAY_MS;
-  const delayFlexivel = remainingMs / totalPending;
-  return Math.max(delayFlexivel, MIN_DELAY_MS);
+  const remainingHours = remainingMs / 3_600_000;
+
+  // Quantidade de msgs desta onda: 1 hora de mensagens, no máximo MAX_WAVE_SIZE
+  const waveSize = remainingHours >= 1
+    ? Math.min(Math.ceil(totalPending / Math.floor(remainingHours)), MAX_WAVE_SIZE)
+    : Math.min(totalPending, MAX_WAVE_SIZE); // última fração de hora: envia tudo
+
+  // Delay que distribui a onda pelo intervalo de 1h (ou tempo restante se < 1h)
+  const waveDurationMs = Math.min(remainingMs || WAVE_INTERVAL_MS, WAVE_INTERVAL_MS);
+  const delayMs        = waveSize > 0
+    ? Math.max(waveDurationMs / waveSize, MIN_DELAY_MS)
+    : MIN_DELAY_MS;
+
+  return { waveSize: Math.max(waveSize, 1), delayMs, remainingMs };
 }
 
 // ── Loop principal ────────────────────────────────────────────────────────────
@@ -139,22 +152,21 @@ async function runCampaignLoop(campaignId, texts, options) {
       break;
     }
 
-    const delayFlexivelMs = calcDelay(endAt, totalPending, durationHours);
+    const { waveSize, delayMs: delayFlexivelMs, remainingMs } = calcWave(endAt, totalPending, durationHours);
 
-    const remainingMin = endAt
-      ? ((Math.max(new Date(endAt) - Date.now(), 0)) / 60_000).toFixed(0)
-      : (durationHours * 60).toFixed(0);
+    const remainingMin = (remainingMs / 60_000).toFixed(0);
     console.log(
       `[ORCHESTRATOR] Campanha "${campaignId}" | ` +
       `Pendentes: ${totalPending} | ` +
       `Tempo restante: ${remainingMin} min | ` +
-      `Delay calculado: ${(delayFlexivelMs / 1000).toFixed(1)}s por mensagem`
+      `Onda: ${waveSize} msgs | ` +
+      `Delay: ${(delayFlexivelMs / 1000).toFixed(1)}s por mensagem`
     );
 
     // ── Passo 3: Lote atômico (fetch + marca como 'enfileirado') ──────────
     let batch;
     try {
-      batch = await fetchAndMarkPendingBatch(campaignId, BATCH_SIZE);
+      batch = await fetchAndMarkPendingBatch(campaignId, waveSize);
     } catch (err) {
       console.error('[ORCHESTRATOR] Erro ao buscar lote:', err.message, '— tentando em 30s.');
       await interruptibleSleep(30_000);
