@@ -81,9 +81,10 @@ export async function startOutboundWorkers() {
       if (retries >= OFFLINE_MAX_RETRIES) {
         console.warn(
           `[WORKER] "${accountId}" offline por ${retries} tentativas — abandonando msg +${phone}. ` +
-          `Permanece como pendente no DB.`
+          `Resetando para pendente no DB.`
         );
         ack();
+        await reportStatus(id, 'pendente', phone);
         return;
       }
 

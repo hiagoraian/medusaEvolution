@@ -1,10 +1,11 @@
-import { consumeQueue }                          from '../../core/rabbitmq.js';
+import { consumeQueue, publishMessage, QUEUES } from '../../core/rabbitmq.js';
 import { sendText, sendMedia, sendWhatsAppAudio } from '../outbound/evolution.outbound.client.js';
-import { QUEUES }                                 from '../../core/rabbitmq.js';
 
 // Delay humano: 10–25 s (mais conservador que o antigo 5-15 s)
 const MIN_DELAY_MS = 10_000;
 const MAX_DELAY_MS = 25_000;
+const TRANSIENT_MAX_RETRIES  = 5;
+const TRANSIENT_REQUEUE_DELAY_MS = 30_000;
 
 const sleep      = (ms) => new Promise((r) => setTimeout(r, ms));
 const humanDelay = () => MIN_DELAY_MS + Math.floor(Math.random() * (MAX_DELAY_MS - MIN_DELAY_MS));
@@ -61,8 +62,16 @@ export async function startWarmupWorker() {
         console.error(`[WARMUP] ✗ Falha permanente [${type}] via ${accountId} → ${target}:`, err.message, '— descartando.');
         ack();
       } else if (isTransient) {
-        console.error(`[WARMUP] ✗ Falha transiente [${type}] via ${accountId} → ${target}:`, err.message, '— requeue.');
-        nack(true);
+        const retries = (task._transitoryRetries ?? 0) + 1;
+        if (retries >= TRANSIENT_MAX_RETRIES) {
+          console.error(`[WARMUP] ✗ Falha transiente [${type}] via ${accountId} — ${retries}ª tentativa, descartando.`);
+          ack();
+        } else {
+          console.error(`[WARMUP] ✗ Falha transiente [${type}] via ${accountId} → ${target}:`, err.message, `— requeue (${retries}/${TRANSIENT_MAX_RETRIES}).`);
+          ack();
+          await sleep(TRANSIENT_REQUEUE_DELAY_MS);
+          publishMessage(QUEUES.WARMUP, { ...task, _transitoryRetries: retries });
+        }
       } else {
         console.error(`[WARMUP] ✗ Erro inesperado [${type}] via ${accountId}:`, err.message, '— DLQ.');
         nack(false);

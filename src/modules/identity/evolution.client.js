@@ -113,6 +113,10 @@ export async function fetchGroups(accountId) {
 let _instancesCache = { map: {}, ts: 0 };
 const CACHE_TTL_MS  = 5 * 60 * 1_000;
 
+export function invalidateInstancesCache() {
+  _instancesCache = { map: {}, ts: 0 };
+}
+
 export async function fetchAllInstancesPhones() {
   if (Date.now() - _instancesCache.ts < CACHE_TTL_MS && Object.keys(_instancesCache.map).length) {
     return _instancesCache.map;

@@ -5,6 +5,7 @@ import {
   setInstanceOffline,
   isInstanceOnline,
 } from './cache.service.js';
+import { invalidateInstancesCache } from './evolution.client.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -71,6 +72,7 @@ export async function handleEvolutionWebhook(req, res) {
           if (!alreadyOnline) {
             await setInstanceOnline(instance);
             await deleteConnectData(instance);
+            invalidateInstancesCache();
             console.log(`[WEBHOOK] Instância CONECTADA: ${instance}`);
           }
         } else if (state === 'close') {
@@ -78,6 +80,7 @@ export async function handleEvolutionWebhook(req, res) {
           if (alreadyOnline) {
             await setInstanceOffline(instance);
             await deleteConnectData(instance);
+            invalidateInstancesCache();
             console.log(`[WEBHOOK] Instância DESCONECTADA: ${instance}`);
           }
         }
