@@ -2,6 +2,7 @@ import { startCampaign, stopCampaign, getCampaignState, getRecoveryState, clearR
 import { purgeQueue, QUEUES }     from '../../core/rabbitmq.js';
 import { getCampaignDbStats }     from '../reports/reports.repository.js';
 import { resetListContacts }      from '../pipeline/pipeline.repository.js';
+import fs                         from 'fs';
 
 // POST /api/orchestrator/start
 export async function startHandler(req, res) {
@@ -20,6 +21,11 @@ export async function startHandler(req, res) {
 
   if (!campaignId) return res.status(400).json({ error: 'campaignId é obrigatório.' });
 
+  // M5 — Valida arquivo de mídia antes de iniciar
+  if (media?.filePath && !fs.existsSync(media.filePath)) {
+    return res.status(400).json({ error: `Arquivo de mídia não encontrado: ${media.filePath}. Faça o upload novamente.` });
+  }
+
   // Normaliza textos: aceita array `texts` ou string singular `text`
   const normalizedTexts = Array.isArray(texts) && texts.length
     ? texts.filter((t) => typeof t === 'string' && t.trim())
@@ -35,6 +41,9 @@ export async function startHandler(req, res) {
     : (typeof zaps === 'string' && zaps.trim()
         ? zaps.split(',').map((z) => z.trim()).filter(Boolean)
         : []);
+
+  // A2 — Limpa contatos presos em 'enfileirado' de sessões anteriores
+  await resetListContacts(campaignId).catch(() => {});
 
   const result = await startCampaign(campaignId, normalizedTexts, {
     campaignName:  campaignName?.trim() || campaignId,

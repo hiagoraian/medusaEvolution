@@ -5,10 +5,13 @@ import { fileURLToPath } from 'url';
 const __dirname   = path.dirname(fileURLToPath(import.meta.url));
 const SPINTAX_FILE = path.resolve(__dirname, '../../../uploads/textspintax.txt');
 
-// Lê e parseia o arquivo de variáveis.
-// Formato: nome = texto completo da variável
-// Linhas começando com # são comentários.
+// Cache de módulo com TTL de 60s — evita leitura de disco em cada mensagem enviada.
+let _varsCache = null;
+let _varsCacheTs = 0;
+const VARS_TTL_MS = 60_000;
+
 function loadVariables() {
+  if (_varsCache && Date.now() - _varsCacheTs < VARS_TTL_MS) return _varsCache;
   try {
     const content = fs.readFileSync(SPINTAX_FILE, 'utf-8');
     const vars = {};
@@ -21,9 +24,11 @@ function loadVariables() {
       const value = trimmed.slice(idx + 1).trim();
       if (key && value) vars[key] = value;
     }
+    _varsCache   = vars;
+    _varsCacheTs = Date.now();
     return vars;
   } catch {
-    return {};
+    return _varsCache ?? {};
   }
 }
 

@@ -1,4 +1,8 @@
-import { query } from '../../core/postgres.js';
+import { query }              from '../../core/postgres.js';
+import { getCache, setCache } from '../../core/redis.js';
+
+const DASHBOARD_CACHE_KEY = 'cache:dashboard_stats';
+const DASHBOARD_CACHE_TTL = 3; // segundos
 
 // ── Histórico de campanhas ────────────────────────────────────────────────────
 
@@ -90,6 +94,9 @@ export async function clearAllData() {
 // Uma única query com FILTER para evitar múltiplas round-trips ao banco.
 // A subquery da campanha ativa retorna o campaign_id mais recente com pendentes.
 export async function getDashboardStats() {
+  const cached = await getCache(DASHBOARD_CACHE_KEY);
+  if (cached) return cached;
+
   const result = await query(`
     SELECT
       COUNT(*) FILTER (WHERE status IN ('enviado', 'invalido'))       AS total_enviados,
@@ -105,12 +112,14 @@ export async function getDashboardStats() {
     FROM messages_queue
   `);
 
-  const row = result.rows[0] ?? {};
-
-  return {
+  const row  = result.rows[0] ?? {};
+  const data = {
     totalEnviados:  parseInt(row.total_enviados  ?? '0', 10),
     totalPendentes: parseInt(row.total_pendentes ?? '0', 10),
     totalFalhas:    parseInt(row.total_falhas    ?? '0', 10),
     campanhaAtiva:  row.campanha_ativa ?? null,
   };
+
+  await setCache(DASHBOARD_CACHE_KEY, data, DASHBOARD_CACHE_TTL);
+  return data;
 }

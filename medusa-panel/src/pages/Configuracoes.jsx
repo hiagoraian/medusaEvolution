@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  Wifi, WifiOff, Loader2, QrCode, Trash2, X, RefreshCw, AlertCircle, Shield, Users, Copy, CheckCheck, Globe,
+  Wifi, WifiOff, Loader2, QrCode, Trash2, X, RefreshCw, AlertCircle, Shield, Globe,
 } from 'lucide-react';
-import { startWhatsApp, getQrCode, disconnectWhatsApp, deleteWhatsApp, getConnectedInstances, getWhatsAppGroups, applyProxies, removeProxies } from '../services/api.js';
+import { startWhatsApp, getQrCode, disconnectWhatsApp, deleteWhatsApp, getConnectedInstances, applyProxies, removeProxies } from '../services/api.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -11,7 +11,7 @@ function normalizeBase64(raw) {
   return raw.startsWith('data:image') ? raw : `data:image/png;base64,${raw}`;
 }
 
-const ALL_IDS = Array.from({ length: 49 }, (_, i) => `WA-${String(i + 1).padStart(2, '0')}`);
+const ALL_IDS = Array.from({ length: 48 }, (_, i) => `WA-${String(i + 1).padStart(2, '0')}`);
 
 // ── Modal backdrop ────────────────────────────────────────────────────────────
 
@@ -388,36 +388,10 @@ export default function Configuracoes() {
   const [disconnectingId, setDisconnectingId] = useState(null);
   const [deletingId,      setDeletingId]      = useState(null);
 
-  // ── Administração Inbound ────────────────────────────────────────────────────
-  const [adminGroups,    setAdminGroups]    = useState([]);
-  const [loadingGroups,  setLoadingGroups]  = useState(false);
-  const [groupsError,    setGroupsError]    = useState('');
-  const [copiedId,       setCopiedId]       = useState('');
-
   // ── Proxy ────────────────────────────────────────────────────────────────────
   const [proxyResult,    setProxyResult]    = useState(null); // { success, failed, skipped }
   const [applyingProxy,  setApplyingProxy]  = useState(false);
   const [removingProxy,  setRemovingProxy]  = useState(false);
-
-  async function fetchAdminGroups() {
-    setLoadingGroups(true);
-    setGroupsError('');
-    try {
-      const { data } = await getWhatsAppGroups('WA-49');
-      setAdminGroups(data);
-    } catch (err) {
-      setGroupsError(err.response?.data?.error ?? err.message ?? 'Erro ao buscar grupos.');
-    } finally {
-      setLoadingGroups(false);
-    }
-  }
-
-  function copyGroupId(id) {
-    navigator.clipboard.writeText(id).then(() => {
-      setCopiedId(id);
-      setTimeout(() => setCopiedId(''), 2_000);
-    });
-  }
 
   async function handleApplyProxies() {
     setApplyingProxy(true);
@@ -501,12 +475,12 @@ export default function Configuracoes() {
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Configurações</h1>
             <p className="text-sm text-gray-500 mt-1">
-              Gerencie as 49 instâncias WhatsApp. WA-49 é o admin de inbound.
+              Gerencie as 48 instâncias WhatsApp.
             </p>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-gray-500">
-              <span className="font-bold text-emerald-600">{totalOnline}</span> / 49 online
+              <span className="font-bold text-emerald-600">{totalOnline}</span> / 48 online
             </span>
             <button
               onClick={fetchInstances}
@@ -528,100 +502,13 @@ export default function Configuracoes() {
                 key={id}
                 id={id}
                 online={instances[id]?.online ?? false}
-                isAdmin={id === 'WA-49'}
+                isAdmin={false}
                 onConnect={() => setConnectingId(id)}
                 onDisconnect={() => setDisconnectingId(id)}
                 onDelete={() => setDeletingId(id)}
               />
             ))}
           </div>
-        </div>
-
-        {/* ── Administração Inbound (WA-49) ──────────────────────────────────── */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
-
-          <div className="flex items-center gap-2.5">
-            <Users size={18} className="text-emerald-500" />
-            <h2 className="text-base font-semibold text-gray-800">Administração Inbound (WA-49)</h2>
-          </div>
-
-          <p className="text-sm text-gray-500">
-            Adicione o <strong>WA-49</strong> aos seus grupos de controle no WhatsApp e clique em
-            {' '}<strong>Buscar</strong> para copiar o ID do grupo e colar no <code className="bg-gray-100 px-1 rounded text-xs">.env</code>.
-          </p>
-
-          <button
-            onClick={fetchAdminGroups}
-            disabled={loadingGroups}
-            className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600
-                       disabled:bg-gray-200 disabled:cursor-not-allowed
-                       text-white disabled:text-gray-400 text-sm font-semibold
-                       px-5 py-2.5 rounded-xl transition"
-          >
-            {loadingGroups
-              ? <><Loader2 size={14} className="animate-spin" /> Buscando...</>
-              : <><RefreshCw size={14} /> Buscar Grupos do WA-49</>
-            }
-          </button>
-
-          {groupsError && (
-            <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50
-                            border border-red-200 rounded-xl px-4 py-3">
-              <AlertCircle size={14} className="flex-shrink-0" />
-              {groupsError}
-            </div>
-          )}
-
-          {adminGroups.length > 0 && (
-            <div className="border border-gray-200 rounded-xl overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                    <th className="px-4 py-2.5 text-left">Nome do Grupo</th>
-                    <th className="px-4 py-2.5 text-left">ID (@g.us)</th>
-                    <th className="px-4 py-2.5 text-center w-16">Copiar</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {adminGroups.map((group) => {
-                    const gid  = group.id ?? group.remoteJid ?? '';
-                    const name = group.subject ?? group.name ?? gid;
-                    const copied = copiedId === gid;
-                    return (
-                      <tr key={gid} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3 font-medium text-gray-800">{name}</td>
-                        <td className="px-4 py-3 font-mono text-xs text-gray-500">{gid}</td>
-                        <td className="px-4 py-3 text-center">
-                          <button
-                            onClick={() => copyGroupId(gid)}
-                            title="Copiar ID"
-                            className={`inline-flex items-center gap-1 text-xs font-semibold
-                                        px-2.5 py-1.5 rounded-lg border transition
-                                        ${copied
-                                          ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
-                                          : 'bg-gray-50 border-gray-300 text-gray-600 hover:bg-gray-100'
-                                        }`}
-                          >
-                            {copied
-                              ? <><CheckCheck size={12} /> Copiado!</>
-                              : <><Copy size={12} /> Copiar</>
-                            }
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {!loadingGroups && !groupsError && adminGroups.length === 0 && (
-            <p className="text-sm text-gray-400 text-center py-4">
-              Clique em <strong>Buscar</strong> para listar os grupos do WA-49.
-            </p>
-          )}
-
         </div>
 
         {/* ── Proxy EveryProxy ──────────────────────────────────────────────── */}
