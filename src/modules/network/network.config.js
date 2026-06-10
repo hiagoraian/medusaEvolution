@@ -24,46 +24,14 @@ function range(start, end) {
 //  ZTE8 → WA-43 … WA-48
 
 export const ZTE_CONFIG = {
-  ZTE1: {
-    serial:   process.env.ZTE_1_SERIAL    ?? null,
-    proxyUrl: process.env.ZTE_1_PROXY_URL ?? null,
-    accounts: range(1, 6),
-  },
-  ZTE2: {
-    serial:   process.env.ZTE_2_SERIAL    ?? null,
-    proxyUrl: process.env.ZTE_2_PROXY_URL ?? null,
-    accounts: range(7, 12),
-  },
-  ZTE3: {
-    serial:   process.env.ZTE_3_SERIAL    ?? null,
-    proxyUrl: process.env.ZTE_3_PROXY_URL ?? null,
-    accounts: range(13, 18),
-  },
-  ZTE4: {
-    serial:   process.env.ZTE_4_SERIAL    ?? null,
-    proxyUrl: process.env.ZTE_4_PROXY_URL ?? null,
-    accounts: range(19, 24),
-  },
-  ZTE5: {
-    serial:   process.env.ZTE_5_SERIAL    ?? null,
-    proxyUrl: process.env.ZTE_5_PROXY_URL ?? null,
-    accounts: range(25, 30),
-  },
-  ZTE6: {
-    serial:   process.env.ZTE_6_SERIAL    ?? null,
-    proxyUrl: process.env.ZTE_6_PROXY_URL ?? null,
-    accounts: range(31, 36),
-  },
-  ZTE7: {
-    serial:   process.env.ZTE_7_SERIAL    ?? null,
-    proxyUrl: process.env.ZTE_7_PROXY_URL ?? null,
-    accounts: range(37, 42),
-  },
-  ZTE8: {
-    serial:   process.env.ZTE_8_SERIAL    ?? null,
-    proxyUrl: process.env.ZTE_8_PROXY_URL ?? null,
-    accounts: range(43, 48),
-  },
+  ZTE1: { proxyUrl: process.env.ZTE_1_PROXY_URL ?? null, accounts: range(1,  6)  },
+  ZTE2: { proxyUrl: process.env.ZTE_2_PROXY_URL ?? null, accounts: range(7,  12) },
+  ZTE3: { proxyUrl: process.env.ZTE_3_PROXY_URL ?? null, accounts: range(13, 18) },
+  ZTE4: { proxyUrl: process.env.ZTE_4_PROXY_URL ?? null, accounts: range(19, 24) },
+  ZTE5: { proxyUrl: process.env.ZTE_5_PROXY_URL ?? null, accounts: range(25, 30) },
+  ZTE6: { proxyUrl: process.env.ZTE_6_PROXY_URL ?? null, accounts: range(31, 36) },
+  ZTE7: { proxyUrl: process.env.ZTE_7_PROXY_URL ?? null, accounts: range(37, 42) },
+  ZTE8: { proxyUrl: process.env.ZTE_8_PROXY_URL ?? null, accounts: range(43, 48) },
 };
 
 // ── Helpers de consulta ───────────────────────────────────────────────────────
