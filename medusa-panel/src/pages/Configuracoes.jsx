@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Wifi, WifiOff, Loader2, QrCode, Trash2, X, RefreshCw, AlertCircle, Shield, Users, Copy, CheckCheck, Globe,
 } from 'lucide-react';
-import { startWhatsApp, getQrCode, disconnectWhatsApp, deleteWhatsApp, getConnectedInstances, getWhatsAppGroups, applyProxies } from '../services/api.js';
+import { startWhatsApp, getQrCode, disconnectWhatsApp, deleteWhatsApp, getConnectedInstances, getWhatsAppGroups, applyProxies, removeProxies } from '../services/api.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -397,6 +397,7 @@ export default function Configuracoes() {
   // ── Proxy ────────────────────────────────────────────────────────────────────
   const [proxyResult,    setProxyResult]    = useState(null); // { success, failed, skipped }
   const [applyingProxy,  setApplyingProxy]  = useState(false);
+  const [removingProxy,  setRemovingProxy]  = useState(false);
 
   async function fetchAdminGroups() {
     setLoadingGroups(true);
@@ -423,11 +424,24 @@ export default function Configuracoes() {
     setProxyResult(null);
     try {
       const { data } = await applyProxies();
-      setProxyResult(data);
+      setProxyResult({ ...data, action: 'apply' });
     } catch (err) {
       setProxyResult({ error: err.response?.data?.error ?? err.message });
     } finally {
       setApplyingProxy(false);
+    }
+  }
+
+  async function handleRemoveProxies() {
+    setRemovingProxy(true);
+    setProxyResult(null);
+    try {
+      const { data } = await removeProxies();
+      setProxyResult({ ...data, action: 'remove' });
+    } catch (err) {
+      setProxyResult({ error: err.response?.data?.error ?? err.message });
+    } finally {
+      setRemovingProxy(false);
     }
   }
 
@@ -619,20 +633,25 @@ export default function Configuracoes() {
           </div>
 
           <p className="text-sm text-gray-500">
-            Aplica o proxy configurado no <code className="bg-gray-100 px-1 rounded text-xs">.env</code> em todas
-            as instâncias de uma vez. Execute com o EveryProxy rodando nos 4 celulares.
+            Aplica ou remove o proxy configurado no <code className="bg-gray-100 px-1 rounded text-xs">.env</code> em todas
+            as instâncias de uma vez. Execute com o EveryProxy rodando nos celulares.
           </p>
 
           <div className="bg-gray-50 rounded-xl p-3 text-xs font-mono text-gray-500 space-y-1">
-            <p>ZTE_1_PROXY_URL=http://IP_ZTE1:8085  → WA-01 a WA-12</p>
-            <p>ZTE_2_PROXY_URL=http://IP_ZTE2:8086  → WA-13 a WA-24</p>
-            <p>ZTE_3_PROXY_URL=http://IP_ZTE3:8087  → WA-25 a WA-36</p>
-            <p>ZTE_4_PROXY_URL=http://IP_ZTE4:8088  → WA-37 a WA-48</p>
+            <p>ZTE_1_PROXY_URL → WA-01 a WA-06</p>
+            <p>ZTE_2_PROXY_URL → WA-07 a WA-12</p>
+            <p>ZTE_3_PROXY_URL → WA-13 a WA-18</p>
+            <p>ZTE_4_PROXY_URL → WA-19 a WA-24</p>
+            <p>ZTE_5_PROXY_URL → WA-25 a WA-30</p>
+            <p>ZTE_6_PROXY_URL → WA-31 a WA-36</p>
+            <p>ZTE_7_PROXY_URL → WA-37 a WA-42</p>
+            <p>ZTE_8_PROXY_URL → WA-43 a WA-48</p>
           </div>
 
+          <div className="flex gap-3">
           <button
             onClick={handleApplyProxies}
-            disabled={applyingProxy}
+            disabled={applyingProxy || removingProxy}
             className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600
                        disabled:bg-gray-200 disabled:cursor-not-allowed
                        text-white disabled:text-gray-400 text-sm font-semibold
@@ -640,16 +659,31 @@ export default function Configuracoes() {
           >
             {applyingProxy
               ? <><Loader2 size={14} className="animate-spin" /> Aplicando...</>
-              : <><Globe size={14} /> Aplicar Proxies em Todos os ZAPs</>
+              : <><Globe size={14} /> Aplicar Proxies</>
             }
           </button>
+
+          <button
+            onClick={handleRemoveProxies}
+            disabled={applyingProxy || removingProxy}
+            className="flex items-center gap-2 bg-red-500 hover:bg-red-600
+                       disabled:bg-gray-200 disabled:cursor-not-allowed
+                       text-white disabled:text-gray-400 text-sm font-semibold
+                       px-5 py-2.5 rounded-xl transition"
+          >
+            {removingProxy
+              ? <><Loader2 size={14} className="animate-spin" /> Removendo...</>
+              : <><X size={14} /> Remover Proxies</>
+            }
+          </button>
+          </div>
 
           {proxyResult && !proxyResult.error && (
             <div className="space-y-2">
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
                   <p className="text-emerald-700 font-bold text-lg">{proxyResult.success?.length ?? 0}</p>
-                  <p className="text-xs text-emerald-600">Aplicados</p>
+                  <p className="text-xs text-emerald-600">{proxyResult.action === 'remove' ? 'Removidos' : 'Aplicados'}</p>
                 </div>
                 <div className={`border rounded-xl px-3 py-2 ${proxyResult.failed?.length > 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'}`}>
                   <p className={`font-bold text-lg ${proxyResult.failed?.length > 0 ? 'text-red-600' : 'text-gray-400'}`}>{proxyResult.failed?.length ?? 0}</p>

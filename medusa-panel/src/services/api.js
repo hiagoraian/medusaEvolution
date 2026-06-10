@@ -97,6 +97,10 @@ export function applyProxies() {
   return api.post('/whatsapp/apply-proxies');
 }
 
+export function removeProxies() {
+  return api.post('/whatsapp/remove-proxies');
+}
+
 export function getWhatsAppGroups(accountId) {
   return api.get(`/whatsapp/groups/${encodeURIComponent(accountId)}`);
 }
