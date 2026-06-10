@@ -155,7 +155,7 @@ function ModalTest({ texts, instances, mediaUpload, onClose }) {
                            .filter((o) => o.text.trim());
 
   const onlineZaps = Object.values(instances)
-    .filter((i) => i.online && i.id !== 'WA-49')
+    .filter((i) => i.online)
     .sort((a, b) => a.id.localeCompare(b.id));
 
   const [testZap,     setTestZap]     = useState(onlineZaps[0]?.id ?? '');
@@ -180,7 +180,7 @@ function ModalTest({ texts, instances, mediaUpload, onClose }) {
         ? { filePath: mediaUpload.filePath, mediaType: mediaUpload.mediaType }
         : null;
       await sendTestMessage(zap, phone, text || null, media);
-      setTestStatus({ type: 'success', message: `Mensagem enfileirada para +${phone} via ${zap}.` });
+      setTestStatus({ type: 'success', message: `✓ Mensagem entregue para +${phone} via ${zap}.` });
     } catch (err) {
       setTestStatus({ type: 'error', message: err.response?.data?.error ?? err.message });
     } finally {

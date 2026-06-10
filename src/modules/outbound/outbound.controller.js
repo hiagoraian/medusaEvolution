@@ -1,8 +1,10 @@
-import { randomUUID }      from 'crypto';
-import { enqueueMessages } from './producer.service.js';
+import fs                               from 'fs';
+import { sendText, sendMedia }          from './evolution.outbound.client.js';
 
-// POST /api/campaign/test-shoot
-export function testShoot(req, res) {
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// POST /api/campaign/test-shoot — envio síncrono (aguarda resultado real da Evolution API)
+export async function testShoot(req, res) {
   const { accountId, phone, text, media } = req.body;
   const hasMedia = media?.filePath && media?.mediaType;
 
@@ -15,22 +17,31 @@ export function testShoot(req, res) {
     return res.status(400).json({ error: 'accountId, phone e ao menos text ou media são obrigatórios.' });
   }
 
+  if (hasMedia && !fs.existsSync(media.filePath)) {
+    return res.status(400).json({ error: `Arquivo de mídia não encontrado. Faça o upload novamente.` });
+  }
+
   try {
-    const campaignId = `test-${randomUUID()}`;
-    const type = hasMedia ? 'media_text' : 'text';
+    if (hasMedia) {
+      const b64 = fs.readFileSync(media.filePath).toString('base64');
+      await sendMedia(accountId, phone, b64, media.mediaType, '');
+      if (text?.trim()) {
+        await sleep(1_500);
+        await sendText(accountId, phone, text.trim());
+      }
+    } else {
+      await sendText(accountId, phone, text.trim());
+    }
 
-    enqueueMessages(campaignId, [{
-      accountId,
-      phone,
-      type,
-      texts:         text ? [text] : [],
-      mediaFilePath: hasMedia ? media.filePath  : null,
-      mediaType:     hasMedia ? media.mediaType : null,
-    }]);
+    console.log(`[TEST-SHOOT] ✓ Enviado para +${phone} via "${accountId}"`);
+    return res.json({ sent: true, phone, accountId });
 
-    return res.json({ message: 'Mensagem enfileirada com sucesso.', campaignId, phone });
   } catch (err) {
-    console.error('[OUTBOUND] Erro ao enfileirar mensagem de teste:', err.message);
-    return res.status(500).json({ error: 'Falha ao publicar na fila.' });
+    const httpStatus = err.response?.status;
+    const errBody    = err.response?.data;
+    const errMsg     = (typeof errBody === 'string' ? errBody : errBody?.message ?? err.message ?? 'Erro desconhecido');
+
+    console.error(`[TEST-SHOOT] ✗ Falha para +${phone} via "${accountId}": HTTP ${httpStatus ?? 'N/A'} — ${errMsg}`);
+    return res.status(httpStatus ?? 500).json({ error: errMsg, detail: errBody ?? null });
   }
 }
