@@ -14,8 +14,6 @@ import pipelineRoutes from '../modules/pipeline/pipeline.routes.js';
 import { createPipelineSchema } from '../modules/pipeline/pipeline.repository.js';
 import networkRoutes       from '../modules/network/network.routes.js';
 import orchestratorRoutes  from '../modules/orchestrator/orchestrator.routes.js';
-import { startInboundWorker } from '../modules/inbound/inbound.worker.js';
-import inboundRoutes          from '../modules/inbound/inbound.routes.js';
 import { startWarmupWorker }  from '../modules/warmup/warmup.worker.js';
 import { startWarmupCron }    from '../modules/warmup/warmup.cron.js';
 import warmupRoutes           from '../modules/warmup/warmup.routes.js';
@@ -45,7 +43,6 @@ app.use('/api/network',        networkRoutes);    // GET  /api/network/status
 app.use('/api/orchestrator',   orchestratorRoutes); // POST /api/orchestrator/start
                                                     // POST /api/orchestrator/stop
                                                     // GET  /api/orchestrator/status
-app.use('/api/inbound',        inboundRoutes);      // GET  /api/inbound/groups/:accountId
 app.use('/api/warmup',         warmupRoutes);       // GET  /api/warmup/config
                                                     // POST /api/warmup/config
 app.use('/api/reports',        reportsRoutes);
@@ -81,7 +78,6 @@ async function bootstrap() {
 
   // Workers iniciam após o canal RabbitMQ estar pronto
   await startOutboundWorkers();
-  await startInboundWorker();
   await startWarmupWorker();
   startWarmupCron(); // não-bloqueante: agenda o primeiro tick e retorna
 
@@ -97,7 +93,6 @@ async function bootstrap() {
     console.log(`[SERVER] POST /api/orchestrator/start`);
     console.log(`[SERVER] POST /api/orchestrator/stop`);
     console.log(`[SERVER] GET  /api/orchestrator/status`);
-    console.log(`[SERVER] GET  /api/inbound/groups/:accountId`);
     console.log(`[SERVER] GET  /api/reports/dashboard`);
     console.log('[BOOT] Sistema pronto.');
     console.log('[BOOT] ══════════════════════════════════════');

@@ -1,4 +1,4 @@
-import { createInstance, fetchInstanceState, reconnectInstance, logoutInstance, restartInstance, deleteInstance, fetchGroups, setInstanceProxy } from './evolution.client.js';
+import { createInstance, fetchInstanceState, reconnectInstance, logoutInstance, restartInstance, deleteInstance, fetchGroups, setInstanceProxy, removeInstanceProxy } from './evolution.client.js';
 import {
   saveConnectData, getConnectData, isInstanceOnline, listInstanceStatuses,
   setInstanceOnline, setInstanceOffline, deleteConnectData, isExplicitlyOffline,
@@ -22,11 +22,7 @@ async function doReconnectAndSaveQr(accountId) {
   return data;
 }
 
-// Todos os 49 IDs conhecidos (48 campanha + admin)
-const ALL_ACCOUNT_IDS = [
-  ...Object.values(ZTE_CONFIG).flatMap((z) => z.accounts),
-  'WA-49',
-];
+const ALL_ACCOUNT_IDS = Object.values(ZTE_CONFIG).flatMap((z) => z.accounts);
 
 // POST /api/whatsapp/start
 export async function startInstance(req, res) {
@@ -145,8 +141,7 @@ export async function getInstances(_req, res) {
     const statuses = await Promise.all(
       ALL_ACCOUNT_IDS.map(async (id) => ({
         id,
-        online:  await isInstanceOnline(id),
-        isAdmin: id === 'WA-49',
+        online: await isInstanceOnline(id),
       }))
     );
     return res.json(statuses);
@@ -181,10 +176,6 @@ export async function disconnectInstanceHandler(req, res) {
 export async function deleteInstanceHandler(req, res) {
   const { accountId } = req.params;
 
-  if (accountId === 'WA-49') {
-    return res.status(403).json({ error: 'Não é possível excluir o admin (WA-49).' });
-  }
-
   console.log(`[IDENTITY] Excluindo instância "${accountId}"...`);
 
   // Passo 1: Logout primeiro — força Evolution a mudar estado de 'open' → 'close'
@@ -196,9 +187,9 @@ export async function deleteInstanceHandler(req, res) {
     // Ignorado — instância pode não estar conectada; prossegue para o delete
   }
 
-  // Passo 2: Delete
+  // Passo 2: Delete com force=true — ignora estado open/close na Evolution
   try {
-    await deleteInstance(accountId);
+    await deleteInstance(accountId, true);
     console.log(`[IDENTITY] "${accountId}" removida da Evolution API.`);
   } catch (err) {
     // Mesmo que a Evolution falhe, limpa o Redis (instância some do painel)
@@ -247,6 +238,28 @@ export async function applyProxiesHandler(_req, res) {
   }
 
   console.log(`[PROXY] Bulk apply concluído — ✓ ${results.success.length} | ✗ ${results.failed.length} | skip ${results.skipped.length}`);
+  return res.json(results);
+}
+
+// POST /api/whatsapp/remove-proxies
+// Remove (desativa) o proxy de todos os ZAPs WA-01..WA-48
+export async function removeProxiesHandler(_req, res) {
+  const allAccounts = Object.values(ZTE_CONFIG).flatMap((z) => z.accounts);
+  const results = { success: [], failed: [] };
+
+  for (const accountId of allAccounts) {
+    try {
+      await removeInstanceProxy(accountId);
+      console.log(`[PROXY] ${accountId} → proxy removido ✓`);
+      results.success.push(accountId);
+    } catch (err) {
+      const reason = err.response?.data?.response?.message?.[0] ?? err.response?.data?.error ?? err.message;
+      console.warn(`[PROXY] ${accountId} falhou ao remover proxy: ${reason}`);
+      results.failed.push({ id: accountId, reason });
+    }
+  }
+
+  console.log(`[PROXY] Remove bulk concluído — ✓ ${results.success.length} | ✗ ${results.failed.length}`);
   return res.json(results);
 }
 

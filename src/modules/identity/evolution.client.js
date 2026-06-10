@@ -93,6 +93,13 @@ export async function setInstanceProxy(accountId, proxyConfig) {
   return data;
 }
 
+// Remove (desativa) o proxy de uma instância existente
+export async function removeInstanceProxy(accountId) {
+  const body = { enabled: false, host: '', port: '', protocol: 'http', username: '', password: '' };
+  const { data } = await client.post(`/proxy/set/${accountId}`, body);
+  return data;
+}
+
 // ── Grupos ────────────────────────────────────────────────────────────────────
 
 export async function fetchGroups(accountId) {

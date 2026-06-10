@@ -2,7 +2,6 @@ import { fetchAndMarkPendingBatch, countPending, armCampaign } from '../pipeline
 import { enqueueMessages }                        from '../outbound/producer.service.js';
 import { ZTE_CONFIG }                             from '../network/network.config.js';
 import { isInstanceOnline }                       from '../identity/cache.service.js';
-import { sendCycleReport }                        from '../reports/cycle.reporter.js';
 import { setCache, delCache, getCache }           from '../../core/redis.js';
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -220,8 +219,6 @@ async function runCampaignLoop(campaignId, texts, options) {
     const onlineAgora  = await getOnlineAccounts(options.zaps ?? []);
     const onlineSet    = new Set(onlineAgora);
     const zapsCaidos   = online.filter((id) => !onlineSet.has(id));
-
-    sendCycleReport({ campaignId, wave, zapsCaidos }).catch(() => {});
 
     // ── Passo 6.6: Verificar limite de ZAPs offline ───────────────────────
     if (maxOfflineZaps && zapsCaidos.length >= maxOfflineZaps) {

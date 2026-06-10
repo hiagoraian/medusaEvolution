@@ -5,7 +5,6 @@ import {
   setInstanceOffline,
   isInstanceOnline,
 } from './cache.service.js';
-import { publishMessage, QUEUES } from '../../core/rabbitmq.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -85,65 +84,8 @@ export async function handleEvolutionWebhook(req, res) {
         break;
       }
 
-      // ── Mensagens recebidas → inbound_queue ────────────────────────────────
-      case 'MESSAGES_UPSERT': {
-        // WA-49 é número pessoal — só serve para encaminhar, não recebe
-        const adminZap = process.env.ADMIN_ZAP ?? 'WA-49';
-        if (instance === adminZap) break;
-
-        const rawData = body?.data;
-        const msgs    = Array.isArray(rawData) ? rawData : [rawData];
-
-        for (const msg of msgs) {
-          if (!msg) continue;
-
-          const key       = msg.key ?? {};
-          const remoteJid = key.remoteJid ?? '';
-
-          // ── Filtros ────────────────────────────────────────────────────────
-          if (key.fromMe)                             continue;
-          if (remoteJid.endsWith('@g.us'))            continue;
-          if (remoteJid.endsWith('@broadcast'))       continue;
-          if (remoteJid.endsWith('@newsletter'))      continue;
-          if (!remoteJid.endsWith('@s.whatsapp.net')) {
-            console.log(`[WEBHOOK] Ignorado — JID fora do padrão: ${remoteJid}`);
-            continue;
-          }
-
-          const message     = msg.message ?? {};
-          // reactionMessage pode vir junto com messageContextInfo — prioriza explicitamente
-          const messageType = message.reactionMessage
-            ? 'reactionMessage'
-            : Object.keys(message)[0] ?? 'unknown';
-
-          // Tipos internos/sistema do WhatsApp — descarta antes de entrar na fila
-          if (messageType === 'messageContextInfo'           ||
-              messageType === 'senderKeyDistributionMessage' ||
-              messageType === 'protocolMessage'              ||
-              messageType === 'templateMessage'              ||
-              messageType === 'ephemeralMessage'             ||
-              messageType === 'buttonsMessage'               ||
-              messageType === 'listMessage') {
-            console.log(`[WEBHOOK] Tipo interno ignorado — ${messageType} de ${remoteJid}`);
-            continue;
-          }
-
-          // Payload completo — inbound.service extrai o que precisar
-          publishMessage(QUEUES.INBOUND, {
-            instance,
-            key,
-            pushName:    msg.pushName    ?? null,
-            messageType,
-            message,
-            receivedAt:  new Date().toISOString(),
-          });
-
-          console.log(
-            `[WEBHOOK] MESSAGES_UPSERT [${messageType}] de ${remoteJid} via "${instance}" → inbound_queue`
-          );
-        }
+      case 'MESSAGES_UPSERT':
         break;
-      }
 
       // ── Atualizações de status de entrega — apenas loga ───────────────────
       case 'MESSAGES_UPDATE':

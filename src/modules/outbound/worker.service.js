@@ -3,16 +3,20 @@ import { isInstanceOnline, setInstanceOffline } from '../identity/cache.service.
 import { sendText, sendMedia }                  from './evolution.outbound.client.js';
 import { updateMessageStatus }     from '../pipeline/pipeline.repository.js';
 import { incrementZapSent }        from '../reports/zap-stats.repository.js';
+import { processSpintax }          from '../spintax/spintax.service.js';
 import fs                          from 'fs';
 
-const OFFLINE_REQUEUE_DELAY_MS = 10_000;
-const OFFLINE_MAX_RETRIES      = 6; // ~1 min — após isso abandona e deixa como pendente no DB
-const MIN_SAFE_DELAY_MS        = 15_000;
+const OFFLINE_REQUEUE_DELAY_MS   = 10_000;
+const OFFLINE_MAX_RETRIES        = 6;   // ~1 min — após isso abandona e deixa como pendente no DB
+const TRANSIENT_REQUEUE_DELAY_MS = 20_000;
+const TRANSIENT_MAX_RETRIES      = 5;   // ~100s — após isso marca como erro e descarta
+const MIN_SAFE_DELAY_MS          = 15_000;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Cache de mídia em memória — lê o arquivo do disco apenas uma vez por processo.
-// Chave: filePath absoluto → Valor: base64 string
+// Cache de mídia em memória com limite de 20 entradas (LRU simples).
+// Quando cheio, remove a entrada mais antiga antes de adicionar nova.
+const MEDIA_CACHE_MAX = 20;
 const _mediaCache = new Map();
 
 function getMediaBase64(filePath) {
@@ -20,6 +24,9 @@ function getMediaBase64(filePath) {
   if (_mediaCache.has(filePath)) return _mediaCache.get(filePath);
   try {
     const b64 = fs.readFileSync(filePath).toString('base64');
+    if (_mediaCache.size >= MEDIA_CACHE_MAX) {
+      _mediaCache.delete(_mediaCache.keys().next().value);
+    }
     _mediaCache.set(filePath, b64);
     console.log(`[WORKER] Mídia carregada em cache: ${filePath} (${(b64.length / 1024).toFixed(0)} KB base64)`);
     return b64;
@@ -39,13 +46,16 @@ async function reportStatus(id, status, phone) {
   }
 }
 
-// Sorteia um texto do array. Fallback para text legado (mensagens de teste).
+// Sorteia um texto do array e processa spintax. Retorna null se não há texto disponível.
 function sortearTexto(task) {
   const { texts, text } = task;
+  let chosen = null;
   if (Array.isArray(texts) && texts.length) {
-    return texts[Math.floor(Math.random() * texts.length)];
+    chosen = texts[Math.floor(Math.random() * texts.length)];
+  } else {
+    chosen = text ?? null;
   }
-  return text ?? '';
+  return chosen ? processSpintax(chosen) : null;
 }
 
 export async function startOutboundWorkers() {
@@ -131,6 +141,12 @@ export async function startOutboundWorkers() {
         await sendMedia(accountId, phone, mediaUrl, mediaType, caption);
       } else {
         const textoSorteado = sortearTexto(task);
+        if (!textoSorteado) {
+          console.error(`[WORKER] Texto vazio para ${phone} (id=${id}) — descartando.`);
+          ack();
+          await reportStatus(id, 'erro', phone);
+          return;
+        }
         await sendText(accountId, phone, textoSorteado);
       }
 
@@ -184,11 +200,23 @@ export async function startOutboundWorkers() {
         ack();
         await reportStatus(id, 'invalido', phone);
       } else {
-        console.error(
-          `[WORKER] Falha transitória para +${phone} via "${accountId}". ` +
-          `HTTP: ${httpStatus ?? err.code ?? 'N/A'} | ${errMsg} — requeue.`
-        );
-        nack(true);
+        const retries = (task._transitoryRetries ?? 0) + 1;
+        if (retries >= TRANSIENT_MAX_RETRIES) {
+          console.error(
+            `[WORKER] Falha transitória para +${phone} via "${accountId}" — ${retries}ª tentativa, abandonando. ` +
+            `HTTP: ${httpStatus ?? err.code ?? 'N/A'} | ${errMsg}`
+          );
+          ack();
+          await reportStatus(id, 'erro', phone);
+        } else {
+          console.error(
+            `[WORKER] Falha transitória para +${phone} via "${accountId}". ` +
+            `HTTP: ${httpStatus ?? err.code ?? 'N/A'} | ${errMsg} — requeue (${retries}/${TRANSIENT_MAX_RETRIES}).`
+          );
+          ack();
+          await sleep(TRANSIENT_REQUEUE_DELAY_MS);
+          publishMessage(QUEUES.OUTBOUND, { ...task, _transitoryRetries: retries });
+        }
       }
     }
   });

@@ -8,7 +8,6 @@ const DLX            = 'medusa_dlx';        // dead-letter exchange
 
 export const QUEUES = {
   OUTBOUND: 'outbound_queue',
-  INBOUND:  'inbound_queue',
   WARMUP:   'warmup_queue',
   DLQ:      'dead_letter_queue',
 };
@@ -44,10 +43,8 @@ export async function connectRabbitMQ() {
 
   // Filas de negócio com rota para DLX em caso de falha
   await _channel.assertQueue(QUEUES.OUTBOUND, { durable: true, arguments: DLX_ARGS });
-  await _channel.assertQueue(QUEUES.INBOUND,  { durable: true, arguments: DLX_ARGS });
   await _channel.assertQueue(QUEUES.WARMUP,   { durable: true, arguments: DLX_ARGS });
   await _channel.bindQueue(QUEUES.OUTBOUND, EXCHANGE, QUEUES.OUTBOUND);
-  await _channel.bindQueue(QUEUES.INBOUND,  EXCHANGE, QUEUES.INBOUND);
   await _channel.bindQueue(QUEUES.WARMUP,   EXCHANGE, QUEUES.WARMUP);
 
   console.log('[RABBITMQ] Exchange e filas configurados.');
