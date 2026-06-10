@@ -12,34 +12,57 @@ function range(start, end) {
 
 // ── Mapeamento de hardware ────────────────────────────────────────────────────
 //
-// Cada ZTE gerencia 12 instâncias WhatsApp.
-// WA-49 (administrador do Inbound) não pertence a nenhum ZTE — é a conta de saída protegida.
+// Cada ZTE gerencia 6 instâncias WhatsApp.
 //
-//  ZTE1 → WA-01 … WA-12   (grupo A)
-//  ZTE2 → WA-13 … WA-24   (grupo B)
-//  ZTE3 → WA-25 … WA-36   (grupo C)
-//  ZTE4 → WA-37 … WA-48   (grupo D)
+//  ZTE1 → WA-01 … WA-06
+//  ZTE2 → WA-07 … WA-12
+//  ZTE3 → WA-13 … WA-18
+//  ZTE4 → WA-19 … WA-24
+//  ZTE5 → WA-25 … WA-30
+//  ZTE6 → WA-31 … WA-36
+//  ZTE7 → WA-37 … WA-42
+//  ZTE8 → WA-43 … WA-48
 
 export const ZTE_CONFIG = {
   ZTE1: {
-    serial:   process.env.ZTE_1_SERIAL   ?? null,
-    proxyUrl: process.env.ZTE_1_PROXY_URL ?? null, // ex: http://localhost:5001
-    accounts: range(1, 12),
+    serial:   process.env.ZTE_1_SERIAL    ?? null,
+    proxyUrl: process.env.ZTE_1_PROXY_URL ?? null,
+    accounts: range(1, 6),
   },
   ZTE2: {
-    serial:   process.env.ZTE_2_SERIAL   ?? null,
+    serial:   process.env.ZTE_2_SERIAL    ?? null,
     proxyUrl: process.env.ZTE_2_PROXY_URL ?? null,
-    accounts: range(13, 24),
+    accounts: range(7, 12),
   },
   ZTE3: {
-    serial:   process.env.ZTE_3_SERIAL   ?? null,
+    serial:   process.env.ZTE_3_SERIAL    ?? null,
     proxyUrl: process.env.ZTE_3_PROXY_URL ?? null,
-    accounts: range(25, 36),
+    accounts: range(13, 18),
   },
   ZTE4: {
-    serial:   process.env.ZTE_4_SERIAL   ?? null,
+    serial:   process.env.ZTE_4_SERIAL    ?? null,
     proxyUrl: process.env.ZTE_4_PROXY_URL ?? null,
-    accounts: range(37, 48),
+    accounts: range(19, 24),
+  },
+  ZTE5: {
+    serial:   process.env.ZTE_5_SERIAL    ?? null,
+    proxyUrl: process.env.ZTE_5_PROXY_URL ?? null,
+    accounts: range(25, 30),
+  },
+  ZTE6: {
+    serial:   process.env.ZTE_6_SERIAL    ?? null,
+    proxyUrl: process.env.ZTE_6_PROXY_URL ?? null,
+    accounts: range(31, 36),
+  },
+  ZTE7: {
+    serial:   process.env.ZTE_7_SERIAL    ?? null,
+    proxyUrl: process.env.ZTE_7_PROXY_URL ?? null,
+    accounts: range(37, 42),
+  },
+  ZTE8: {
+    serial:   process.env.ZTE_8_SERIAL    ?? null,
+    proxyUrl: process.env.ZTE_8_PROXY_URL ?? null,
+    accounts: range(43, 48),
   },
 };
 
