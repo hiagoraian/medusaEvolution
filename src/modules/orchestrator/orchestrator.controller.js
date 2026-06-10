@@ -97,9 +97,11 @@ export async function recoverHandler(_req, res) {
   const state = await getRecoveryState();
   if (!state) return res.status(404).json({ error: 'Nenhuma campanha interrompida para retomar.' });
 
-  // Limpa a fila e reseta contatos presos como enfileirado → importado
-  // para que o armCampaign os re-arme corretamente
+  // Limpa a fila e reseta contatos presos como enfileirado → importado.
+  // O sleep de 3s dá tempo para msgs in-flight serem processadas pelo worker
+  // antes do reset, evitando que o mesmo contato seja enviado duas vezes.
   try { await purgeQueue(QUEUES.OUTBOUND); } catch { /* ignora se fila já estava vazia */ }
+  await new Promise((r) => setTimeout(r, 3_000));
   try { await resetListContacts(state.campaignId); } catch { /* ignora */ }
 
   const result = await startCampaign(state.campaignId, state.texts, {
@@ -137,9 +139,18 @@ export function suspendHandler(_req, res) {
 
 // POST /api/orchestrator/purge
 export async function purgeHandler(_req, res) {
-  try {
-    stopCampaign();
-  } catch { /* ignora se não havia campanha */ }
+  const wasRunning = getCampaignState().running;
+  try { stopCampaign(); } catch { }
+
+  // Aguarda o loop encerrar antes de purgar (evita que a última onda
+  // ainda enfileire mensagens depois do purge)
+  if (wasRunning) {
+    const deadline = Date.now() + 12_000;
+    while (getCampaignState().running && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 300));
+    }
+  }
+
   try {
     const count = await purgeQueue(QUEUES.OUTBOUND);
     console.log(`[ORCHESTRATOR] Fila limpa — ${count} mensagem(s) descartada(s).`);

@@ -124,7 +124,13 @@ export async function startOutboundWorkers() {
           await sendMedia(accountId, phone, b64, mediaType, '');
           if (textoSorteado) {
             await sleep(2_000 + Math.floor(Math.random() * 3_000));
-            await sendText(accountId, phone, textoSorteado);
+            try {
+              await sendText(accountId, phone, textoSorteado);
+            } catch (textErr) {
+              // Mídia já foi entregue — não requeue (evita envio duplo da mídia).
+              // Loga o texto perdido e segue para o sucesso parcial.
+              console.warn(`[WORKER] Mídia enviada mas texto falhou para ${phone} (${textErr.message}) — contato marcado como enviado.`);
+            }
           }
         } else if (textoSorteado) {
           console.warn(`[WORKER] Arquivo de mídia ausente para ${phone} — enviando apenas texto.`);

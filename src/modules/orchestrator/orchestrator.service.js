@@ -10,6 +10,7 @@ const MAX_WAVE_SIZE       = 500;        // teto por onda
 const WAVE_INTERVAL_MS    = 60 * 60_000; // cada onda cobre ~1h
 const OUT_OF_WINDOW_MS    = 5 * 60_000; // 5 min hibernando fora da janela
 const NO_ACCOUNTS_MS      = 2 * 60_000; // 2 min se todas as instâncias caírem
+const NO_ACCOUNTS_MAX     = 10;         // 10 × 2min = pausa automática após 20 min offline
 const STOP_POLL_INTERVAL  = 10_000;     // granularidade do sleep interrompível
 const MIN_DELAY_MS        = 15_000;     // freio de mão: nunca < 15 s entre envios
 
@@ -114,6 +115,7 @@ function calcWave(endAt, totalPending, durationHours) {
 async function runCampaignLoop(campaignId, texts, options) {
   const { durationHours, startAt, endAt, media, maxOfflineZaps } = options;
   let wave = 0;
+  let noZapsCount = 0;
 
   while (!stopRequested) {
 
@@ -181,10 +183,23 @@ async function runCampaignLoop(campaignId, texts, options) {
     // ── Passo 4: Instâncias online (filtradas pelos ZAPs selecionados, se houver) ─
     const online = await getOnlineAccounts(options.zaps ?? []);
     if (!online.length) {
-      console.warn(`[ORCHESTRATOR] Nenhuma instância online. Aguardando ${NO_ACCOUNTS_MS / 60_000} min...`);
+      noZapsCount++;
+      if (noZapsCount >= NO_ACCOUNTS_MAX) {
+        noZapsCount = 0;
+        isPaused    = true;
+        console.log(`[ORCHESTRATOR] ${NO_ACCOUNTS_MAX} verificações sem ZAPs online (~20 min) — campanha pausada automaticamente. Aguardando operador.`);
+        while (isPaused && !stopRequested) {
+          await sleep(STOP_POLL_INTERVAL);
+        }
+        _pausedZaps = [];
+        if (!stopRequested) console.log('[ORCHESTRATOR] Campanha retomada após pausa automática.');
+        continue;
+      }
+      console.warn(`[ORCHESTRATOR] Nenhuma instância online (${noZapsCount}/${NO_ACCOUNTS_MAX}). Aguardando ${NO_ACCOUNTS_MS / 60_000} min...`);
       await interruptibleSleep(NO_ACCOUNTS_MS);
       continue;
     }
+    noZapsCount = 0;
 
     // ── Passo 5: Enfileira com delay + textos + mídia no payload ─────────
     const messages = batch.map((contact, i) => ({
