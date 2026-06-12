@@ -135,7 +135,7 @@ export async function startInstance(req, res) {
   }
 }
 
-// GET /api/whatsapp/instances — retorna todos os 49 ZAPs com status do Redis
+// GET /api/whatsapp/instances — retorna todos os 48 ZAPs com status do Redis
 export async function getInstances(_req, res) {
   try {
     const statuses = await Promise.all(

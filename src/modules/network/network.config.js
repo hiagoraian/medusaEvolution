@@ -36,7 +36,7 @@ export function getAllZteIds() {
   return Object.keys(ZTE_CONFIG);
 }
 
-// Retorna { zteId, serial, proxyUrl, accounts } ou null se a conta não tiver ZTE
+// Retorna { zteId, proxyUrl, accounts } ou null se a conta não tiver ZTE
 export function getZteForAccount(accountId) {
   for (const [zteId, config] of Object.entries(ZTE_CONFIG)) {
     if (config.accounts.includes(accountId)) {
