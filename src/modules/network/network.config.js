@@ -12,26 +12,22 @@ function range(start, end) {
 
 // ── Mapeamento de hardware ────────────────────────────────────────────────────
 //
-// Cada ZTE gerencia 6 instâncias WhatsApp.
-//
-//  ZTE1 → WA-01 … WA-06
-//  ZTE2 → WA-07 … WA-12
-//  ZTE3 → WA-13 … WA-18
-//  ZTE4 → WA-19 … WA-24
-//  ZTE5 → WA-25 … WA-30
-//  ZTE6 → WA-31 … WA-36
-//  ZTE7 → WA-37 … WA-42
-//  ZTE8 → WA-43 … WA-48
+//  ZTE1 → WA-01 … WA-07  (7 ZAPs)
+//  ZTE2 → WA-08 … WA-14  (7 ZAPs)
+//  ZTE3 → WA-15 … WA-21  (7 ZAPs)
+//  ZTE4 → WA-22 … WA-28  (7 ZAPs)
+//  ZTE5 → WA-29 … WA-35  (7 ZAPs)
+//  ZTE6 → WA-36 … WA-42  (7 ZAPs)
+//  ZTE7 → WA-43 … WA-48  (6 ZAPs)
 
 export const ZTE_CONFIG = {
-  ZTE1: { proxyUrl: process.env.ZTE_1_PROXY_URL ?? null, accounts: range(1,  6)  },
-  ZTE2: { proxyUrl: process.env.ZTE_2_PROXY_URL ?? null, accounts: range(7,  12) },
-  ZTE3: { proxyUrl: process.env.ZTE_3_PROXY_URL ?? null, accounts: range(13, 18) },
-  ZTE4: { proxyUrl: process.env.ZTE_4_PROXY_URL ?? null, accounts: range(19, 24) },
-  ZTE5: { proxyUrl: process.env.ZTE_5_PROXY_URL ?? null, accounts: range(25, 30) },
-  ZTE6: { proxyUrl: process.env.ZTE_6_PROXY_URL ?? null, accounts: range(31, 36) },
-  ZTE7: { proxyUrl: process.env.ZTE_7_PROXY_URL ?? null, accounts: range(37, 42) },
-  ZTE8: { proxyUrl: process.env.ZTE_8_PROXY_URL ?? null, accounts: range(43, 48) },
+  ZTE1: { proxyUrl: process.env.ZTE_1_PROXY_URL ?? null, accounts: range(1,  7)  },
+  ZTE2: { proxyUrl: process.env.ZTE_2_PROXY_URL ?? null, accounts: range(8,  14) },
+  ZTE3: { proxyUrl: process.env.ZTE_3_PROXY_URL ?? null, accounts: range(15, 21) },
+  ZTE4: { proxyUrl: process.env.ZTE_4_PROXY_URL ?? null, accounts: range(22, 28) },
+  ZTE5: { proxyUrl: process.env.ZTE_5_PROXY_URL ?? null, accounts: range(29, 35) },
+  ZTE6: { proxyUrl: process.env.ZTE_6_PROXY_URL ?? null, accounts: range(36, 42) },
+  ZTE7: { proxyUrl: process.env.ZTE_7_PROXY_URL ?? null, accounts: range(43, 48) },
 };
 
 // ── Helpers de consulta ───────────────────────────────────────────────────────

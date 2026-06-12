@@ -525,14 +525,13 @@ export default function Configuracoes() {
           </p>
 
           <div className="bg-gray-50 rounded-xl p-3 text-xs font-mono text-gray-500 space-y-1">
-            <p>ZTE_1_PROXY_URL → WA-01 a WA-06</p>
-            <p>ZTE_2_PROXY_URL → WA-07 a WA-12</p>
-            <p>ZTE_3_PROXY_URL → WA-13 a WA-18</p>
-            <p>ZTE_4_PROXY_URL → WA-19 a WA-24</p>
-            <p>ZTE_5_PROXY_URL → WA-25 a WA-30</p>
-            <p>ZTE_6_PROXY_URL → WA-31 a WA-36</p>
-            <p>ZTE_7_PROXY_URL → WA-37 a WA-42</p>
-            <p>ZTE_8_PROXY_URL → WA-43 a WA-48</p>
+            <p>ZTE_1_PROXY_URL → WA-01 a WA-07</p>
+            <p>ZTE_2_PROXY_URL → WA-08 a WA-14</p>
+            <p>ZTE_3_PROXY_URL → WA-15 a WA-21</p>
+            <p>ZTE_4_PROXY_URL → WA-22 a WA-28</p>
+            <p>ZTE_5_PROXY_URL → WA-29 a WA-35</p>
+            <p>ZTE_6_PROXY_URL → WA-36 a WA-42</p>
+            <p>ZTE_7_PROXY_URL → WA-43 a WA-48</p>
           </div>
 
           <div className="flex gap-3">

@@ -1,5 +1,6 @@
 import fs                               from 'fs';
 import { sendText, sendMedia }          from './evolution.outbound.client.js';
+import { processSpintax }               from '../spintax/spintax.service.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -27,10 +28,10 @@ export async function testShoot(req, res) {
       await sendMedia(accountId, phone, b64, media.mediaType, '');
       if (text?.trim()) {
         await sleep(1_500);
-        await sendText(accountId, phone, text.trim());
+        await sendText(accountId, phone, processSpintax(text.trim()));
       }
     } else {
-      await sendText(accountId, phone, text.trim());
+      await sendText(accountId, phone, processSpintax(text.trim()));
     }
 
     console.log(`[TEST-SHOOT] ✓ Enviado para +${phone} via "${accountId}"`);
